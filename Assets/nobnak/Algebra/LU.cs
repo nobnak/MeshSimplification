@@ -68,7 +68,7 @@ namespace nobnak.Algebra {
 			for (var i = 0; i < n; i++) {
 				var y_i = b[pivot[i]];
 				for (var k = 0; k < i; k++) {
-					y_i -= lu[ij2lin(i, k)] * b[pivot[k]];
+					y_i -= lu[ij2lin(i, k)] * x[k];
 				}
 				x[i] = y_i;
 			}
