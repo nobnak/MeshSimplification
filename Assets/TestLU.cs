@@ -1,10 +1,36 @@
 using UnityEngine;
 using System.Collections;
 using nobnak.Algebra;
+using System.Text;
 
 public class TestLU : MonoBehaviour {
-
-	void Start () {
+	
+	void Start() {
+		Test02();
+	}
+	
+	void Test02() {
+		var A = new float[]{
+			0, 1, 2,
+			2, 0, 1,
+			1, 2, 0
+		};
+		var lu = new LU(A, 3);
+		var refLu = new float[] {
+			2f,		0f,		1f,
+			1f/2,	2f,		-1f/2,
+			0f,		1f/2,	9f/4
+		};
+		AssertLU(lu, refLu);
+		
+		var b = new float[] { 8, 5, 5 };
+		var x = new float[3];
+		var refX = new float[] { 1, 2, 3 };
+		lu.Solve(b, ref x);
+		AssertX(x, refX);
+	}
+	
+	void Test01() {
 		var A = new float[]{
 			1, 2, 3,
 			2, 3, 1,
@@ -17,15 +43,24 @@ public class TestLU : MonoBehaviour {
 			2, -1, -5,
 			3, 5, 18
 		};
+		AssertLU (lu, refLU);
+
+		var b = new float[]{ 6, 6, 6 };
+		var x = new float[3];
+		lu.Solve(b, ref x);
+		var refX = new float[] { 1, 1, 1 };
+		AssertX (b, refX);
+	}
+
+	void AssertLU (LU lu, float[] refLU) {
 		for (var i = 0; i < refLU.Length; i++) {
 			var x = i % 3;
 			var y = i / 3;
-			Assert (lu.lu[i], refLU[i], string.Format("A_ij={0},{1}", x, y));
+			Assert (lu.lu[i], refLU[i], string.Format("LU_ij={0},{1}", x, y));
 		}
+	}
 
-		var b = new float[]{ 6, 6, 6 };
-		lu.Solve(b);
-		var refX = new float[] { 1, 1, 1 };
+	void AssertX (float[] b, float[] refX) {
 		for (var i = 0; i < refX.Length; i++) {
 			Assert(b[i], refX[i], string.Format("x_i={0}", i));
 		}

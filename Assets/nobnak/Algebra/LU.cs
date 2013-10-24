@@ -20,7 +20,7 @@ namespace nobnak.Algebra {
 		public void Decompose() {
 			for (var j = 0; j < n; j++) {
 				for (var i = 0; i < j; i++) {
-					var beta = a[ij2lin(i, j)];
+					var beta = a[ij2lin(pivot[i], j)];
 					for (var k = 0; k < i; k++) {
 						beta -= lu[ij2lin(i, k)] * lu[ij2lin(k, j)];
 					}
@@ -31,7 +31,7 @@ namespace nobnak.Algebra {
 					var maxBetajj = 0f;
 					var pivotI = j;
 					for (var i = j; i < n; i++) {
-						var tmpBetajj = a[ij2lin(i, j)];
+						var tmpBetajj = a[ij2lin(pivot[i], j)];
 						for (var k = 0; k < j; k++) {
 							tmpBetajj -= lu[ij2lin(i, k)] * lu[ij2lin(k, j)];
 						}
@@ -41,12 +41,15 @@ namespace nobnak.Algebra {
 							pivotI = i;
 						}
 					}
-					var tmp = pivot[j]; pivot[j] = pivot[pivotI]; pivot[pivotI] = tmp;
-				}						
+					var p0 = pivot[j];
+					var p1 = pivot[pivotI];
+					var tmp = pivot[p0]; pivot[p0] = pivot[p1]; pivot[p1] = tmp;
+					SwapRow(lu, j, pivotI, n);
+				}
 				
 				{
 					var i = j;
-					var beta = a[ij2lin(i, j)];
+					var beta = a[ij2lin(pivot[i], j)];
 					for (var k = 0; k < i; k++) {
 						beta -= lu[ij2lin(i, k)] * lu[ij2lin(k, j)];
 					}
@@ -54,7 +57,7 @@ namespace nobnak.Algebra {
 				}
 				
 				for (var i = j + 1; i < n; i++) {
-					var alpha = a[ij2lin(i, j)];
+					var alpha = a[ij2lin(pivot[i], j)];
 					for (var k = 0; k < j; k++) {
 						alpha -= lu[ij2lin(i, k)] * lu[ij2lin(k, j)];
 					}
@@ -63,27 +66,35 @@ namespace nobnak.Algebra {
 			}
 		}
 		
-		public void Solve(float[] b) {
+		public void Solve(float[] b, ref float[] x) {
 			for (var i = 0; i < n; i++) {
-				var y = b[pivot[i]];
+				var y_i = b[pivot[i]];
 				for (var k = 0; k < i; k++) {
-					y -= lu[ij2lin(i, k)] * b[pivot[k]];
+					y_i -= lu[ij2lin(i, k)] * b[pivot[k]];
 				}
-				b[pivot[i]] = y;
+				x[i] = y_i;
 			}
 			
 			for (var i = n - 1; i >= 0; i--) {
-				var x = b[pivot[i]];
+				var x_i = x[i];
 				var rBetajj = 1f / lu[ij2lin(i, i)];
 				for (var k = i + 1; k < n; k++) {
-					x -= lu[ij2lin(i, k)] * b[pivot[k]];
+					x_i -= lu[ij2lin(i, k)] * x[k];
 				}
-				b[pivot[i]] = x * rBetajj;
+				x[i] = x_i * rBetajj;
 			}
 		}
 		
 		public int ij2lin(int i, int j) {
-			return pivot[i] * n + j;
+			return i * n + j;
+		}
+		
+		public static void SwapRow(float[] a, int row0, int row1, int n) {
+			var i0 = row0 * n;
+			var i1 = row1 * n;
+			for (var j = 0; j < n; j++) {
+				var tmp = a[i0 + j]; a[i0 + j] = a[i1 + j]; a[i1 + j] = tmp;
+			}
 		}
 	}
 	
