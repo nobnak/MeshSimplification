@@ -41,9 +41,7 @@ namespace nobnak.Algebra {
 							pivotI = i;
 						}
 					}
-					var p0 = pivot[j];
-					var p1 = pivot[pivotI];
-					var tmp = pivot[p0]; pivot[p0] = pivot[p1]; pivot[p1] = tmp;
+					var tmp = pivot[j]; pivot[j] = pivot[pivotI]; pivot[pivotI] = tmp;
 					SwapRow(lu, j, pivotI, n);
 				}
 				
