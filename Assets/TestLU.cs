@@ -6,6 +6,7 @@ using System.Text;
 public class TestLU : MonoBehaviour {
 	
 	void Start() {
+		Test01();
 		Test02();
 	}
 	
@@ -32,24 +33,18 @@ public class TestLU : MonoBehaviour {
 	
 	void Test01() {
 		var A = new float[]{
-			1, 2, 3,
-			2, 3, 1,
-			3, 1, 2
+			1, 2, 3, 4,
+			2, 3, 4, 1, 
+			3, 4, 1, 2,
+			4, 1, 2, 3,
 		};
-		var lu = new LU(A, 3);
+		var lu = new LU(A, 4);
 		
-		var refLU = new float[]{
-			1, 2, 3,
-			2, -1, -5,
-			3, 5, 18
-		};
-		AssertLU (lu, refLU);
-
-		var b = new float[]{ 6, 6, 6 };
-		var x = new float[3];
+		var b = new float[]{ 16, 14, 16, 14 };
+		var x = new float[4];
 		lu.Solve(b, ref x);
-		var refX = new float[] { 1, 1, 1 };
-		AssertX (b, refX);
+		var refX = new float[] { 1, 2, 1, 2 };
+		AssertX (x, refX);
 	}
 
 	void AssertLU (LU lu, float[] refLU) {
