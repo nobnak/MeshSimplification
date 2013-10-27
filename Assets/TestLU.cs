@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections;
 using nobnak.Algebra;
 using System.Text;
+using nobnak.Test;
 
 public class TestLU : MonoBehaviour {
 	
@@ -51,19 +52,13 @@ public class TestLU : MonoBehaviour {
 		for (var i = 0; i < refLU.Length; i++) {
 			var x = i % 3;
 			var y = i / 3;
-			Assert (lu.lu[i], refLU[i], string.Format("LU_ij={0},{1}", x, y));
+			Assertion.Assert (lu.lu[i], refLU[i], string.Format("LU_ij={0},{1}", x, y));
 		}
 	}
 
 	void AssertX (float[] b, float[] refX) {
 		for (var i = 0; i < refX.Length; i++) {
-			Assert(b[i], refX[i], string.Format("x_i={0}", i));
+			Assertion.Assert(b[i], refX[i], string.Format("x_i={0}", i));
 		}
-	}
-	
-	void Assert(float a, float b, string label) {
-		var diff = a - b;
-		if (diff < -1e-6 || 1e-6 < diff)
-			Debug.Log(string.Format("{0} : a={1:e2} b={2:e2}", label, a, b));
 	}
 }
