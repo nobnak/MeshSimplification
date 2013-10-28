@@ -55,8 +55,8 @@ public class TestLU : MonoBehaviour {
 			Assertion.Assert (lu.lu[i], refLU[i], string.Format("LU_ij={0},{1}", x, y));
 		}
 	}
-
-	void AssertX (float[] b, float[] refX) {
+	
+	public static void AssertX (float[] b, float[] refX) {
 		for (var i = 0; i < refX.Length; i++) {
 			Assertion.Assert(b[i], refX[i], string.Format("x_i={0}", i));
 		}

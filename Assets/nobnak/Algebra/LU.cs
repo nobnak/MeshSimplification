@@ -2,6 +2,8 @@
 namespace nobnak.Algebra {
 
 	public class LU {
+		public const float EPSILON = 1e-7f;
+		
 		public readonly int n;
 		public readonly float[] a;
 		public readonly float[] lu;
@@ -41,6 +43,8 @@ namespace nobnak.Algebra {
 							pivotI = i;
 						}
 					}
+					if (maxBetajj < EPSILON)
+						throw new System.Exception("Singular matrix");
 					var tmp = pivot[j]; pivot[j] = pivot[pivotI]; pivot[pivotI] = tmp;
 					SwapRow(lu, j, pivotI, n);
 				}
