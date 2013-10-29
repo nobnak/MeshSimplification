@@ -44,7 +44,7 @@ namespace nobnak.Algebra {
 						}
 					}
 					if (maxBetajj < EPSILON)
-						throw new System.Exception("Singular matrix");
+						throw new SingularMatrixException();
 					var tmp = pivot[j]; pivot[j] = pivot[pivotI]; pivot[pivotI] = tmp;
 					SwapRow(lu, j, pivotI, n);
 				}
@@ -104,5 +104,8 @@ namespace nobnak.Algebra {
 		public static float Abs(float val) {
 			return (val < 0f) ? -val : val;			
 		}
+	}
+	
+	public class SingularMatrixException : System.Exception {
 	}
 }

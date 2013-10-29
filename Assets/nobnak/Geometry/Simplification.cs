@@ -8,6 +8,7 @@ namespace nobnak.Geometry {
 		public Vector3[] vertices;
 		public int[] triangles;
 		public VertexInfo[] vertexInfos;
+		public HashSet<Edge> edges;
 		
 		public Simplification(Vector3[] vertices, int[] triangles) {
 			Build(vertices, triangles);
@@ -19,6 +20,7 @@ namespace nobnak.Geometry {
 				vertexInfos[i] = new VertexInfo(i);
 
 			var faces = new Face[triangles.Length / 3];
+			edges = new HashSet<Edge>();
 			for (var i = 0; i < faces.Length; i++) {
 				var iTriangle = i * 3;
 				var f = new Face(triangles[iTriangle], triangles[iTriangle + 1], triangles[iTriangle + 2]);
@@ -26,6 +28,10 @@ namespace nobnak.Geometry {
 				for (var iv = 0; iv < 3; iv++) {
 					var info = vertexInfos[f[iv]];
 					info.faces.AddLast(f);
+					
+					var edge = new Edge(f[iv], f[iv + 1]);
+					if (!edges.Contains(edge))
+						edges.Add(edge);
 				}
 			}
 			
@@ -124,7 +130,7 @@ namespace nobnak.Geometry {
 			public Vector4 Plane(Vector3[] vertices) {
 				return Plane(vertices[v0], vertices[v1], vertices[v2]);
 			}
-			public Vector4 Plane(Vector3 v0, Vector3 v1, Vector3 v2) {
+			public static Vector4 Plane(Vector3 v0, Vector3 v1, Vector3 v2) {
 				var e1 = v1 - v0;
 				var e2 = v2 - v0;
 				var n = Vector3.Cross(e1, e2).normalized;
@@ -160,6 +166,31 @@ namespace nobnak.Geometry {
 						break;
 					}
 				}
+			}
+		}
+		public class Edge {
+			public int v0, v1;
+			
+			public Edge(int v0, int v1) {
+				if (v0 < v1) {
+					this.v0 = v0;
+					this.v1 = v1;
+				} else {
+					this.v0 = v1;
+					this.v1 = v0;
+				}
+			}
+			
+			public override int GetHashCode () {
+				return 71 * (v0 + 19 * v1);
+			}
+			public override bool Equals (object obj) {
+				var e = obj as Edge;
+				return (e != null && e.v0 == v0 && e.v1 == v1);
+			}
+			
+			public override string ToString () {
+				return string.Format("Edge({0},{1})", v0, v1);
 			}
 		}
 		#endregion

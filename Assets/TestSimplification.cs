@@ -22,23 +22,24 @@ public class TestSimplification : MonoBehaviour {
 			faceCounter[v] = c + 1;
 		}
 		
-		var vertexInfos = simp.vertexInfos;
-		var errorCounter = 0;
-		foreach (var info in vertexInfos) {
+		var successCount = 0;
+		var failCount = 0;
+		foreach (var edge in simp.edges) {
+			var v0 = simp.vertexInfos[edge.v0];
+			var v1 = simp.vertexInfos[edge.v1];
+			var q = v0.quad + v1.quad;
 			try { 
-				var minErrorPos = info.quad.MinError();
-				var error = info.quad * minErrorPos;
-				//Debug.Log(string.Format("Pos={0} Error={1:e}", minErrorPos, error));
-			} catch {
-				errorCounter++;
-				var buf = new StringBuilder();
-				buf.AppendFormat("v={0} nFaces={1}\n", info.iVertex, info.faces.Count);
-				foreach (var f in info.faces) {
-					buf.AppendFormat("Plane : {0:e2}\n", f.Plane(sphere.vertices));
-				}
-				Debug.Log(buf);
+				var minPos = q.MinError();
+				var error = q * minPos;
+				if (error < -1e-6f)
+					Debug.Log(string.Format("edge={0} pos={1} error={2:e}", edge, minPos, error));
+				successCount++;
+			} catch (nobnak.Algebra.SingularMatrixException) {
+
+				failCount++;
 			}
 		}
-		Debug.Log("nErrors=" + errorCounter);
+		Debug.Log(string.Format("success={0} fail={1}", successCount, failCount));
 	}
+
 }
