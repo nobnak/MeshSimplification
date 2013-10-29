@@ -11,6 +11,8 @@ namespace nobnak.Geometry {
 		public HashSet<Edge> edges;
 		
 		public Simplification(Vector3[] vertices, int[] triangles) {
+			this.vertices = vertices;
+			this.triangles = triangles;
 			Build(vertices, triangles);
 		}
 		

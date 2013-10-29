@@ -22,24 +22,50 @@ public class TestSimplification : MonoBehaviour {
 			faceCounter[v] = c + 1;
 		}
 		
-		var successCount = 0;
-		var failCount = 0;
+		var invertibleCount = 0;
+		var singularCount = 0;
 		foreach (var edge in simp.edges) {
-			var v0 = simp.vertexInfos[edge.v0];
-			var v1 = simp.vertexInfos[edge.v1];
-			var q = v0.quad + v1.quad;
+			var vi0 = simp.vertexInfos[edge.v0];
+			var vi1 = simp.vertexInfos[edge.v1];
+			var q = vi0.quad + vi1.quad;
 			try { 
 				var minPos = q.MinError();
 				var error = q * minPos;
-				if (error < -1e-6f)
-					Debug.Log(string.Format("edge={0} pos={1} error={2:e}", edge, minPos, error));
-				successCount++;
+				invertibleCount++;
 			} catch (nobnak.Algebra.SingularMatrixException) {
-
-				failCount++;
+				Vector3 bestPos;
+				float minError;
+				MinErrorOnEdge(simp, vi0, vi1, q, out bestPos, out minError);
+				singularCount++;
 			}
 		}
-		Debug.Log(string.Format("success={0} fail={1}", successCount, failCount));
+		Debug.Log(string.Format("invertible={0} singular={1}", invertibleCount, singularCount));
+	}
+	
+	static void MinErrorOnEdge(Simplification simp, Simplification.VertexInfo vi0, Simplification.VertexInfo vi1, Simplification.Q q, out Vector3 bestPos, out float minError) {
+		var v0 = simp.vertices[vi0.iVertex];
+		var v1 = simp.vertices[vi1.iVertex];
+		var vmid = (v0 + v1) * 0.5f;
+		var errorV0 = q * v0;
+		var errorV1 = q * v1;
+		var errorVmid = q * vmid;
+		if (errorV0 < errorV1) {
+			if (errorV0 < errorVmid) {
+				bestPos = v0;
+				minError = errorV0;
+			} else {
+				bestPos = vmid;
+				minError = errorVmid;
+			}
+		} else {
+			if (errorV1 < errorVmid) {
+				bestPos = v1;
+				minError = errorV1;
+			} else {
+				bestPos = vmid;
+				minError = errorVmid;
+			}
+		}
 	}
 
 }
