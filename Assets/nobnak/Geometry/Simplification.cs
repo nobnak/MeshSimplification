@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using nobnak.Algebra;
+using nobnak.Collection;
 
 
 namespace nobnak.Geometry {
@@ -9,10 +10,12 @@ namespace nobnak.Geometry {
 		public int[] triangles;
 		public VertexInfo[] vertexInfos;
 		public HashSet<Edge> edges;
+		public BinaryHeap<EdgeCost> costs;
 		
 		public Simplification(Vector3[] vertices, int[] triangles) {
 			this.vertices = vertices;
 			this.triangles = triangles;
+			this.costs = new BinaryHeap<EdgeCost>(new EdgeCost.Comparer());
 			Build(vertices, triangles);
 		}
 		
@@ -44,9 +47,53 @@ namespace nobnak.Geometry {
 					info.quad += K;
 				}
 			}
+			
+			foreach (var edge in edges) {
+				Vector3 pos;
+				float cost;
+				Q q;
+				MinError(edge, out pos, out cost, out q);
+				costs.Add(new EdgeCost(edge, cost));
+			}
 		}
-
-
+		
+		public void MinError(Edge edge, out Vector3 minPos, out float minError, out Q q) {
+			var vi0 = vertexInfos[edge.v0];
+			var vi1 = vertexInfos[edge.v1];
+			q = vi0.quad + vi1.quad;
+			try { 
+				minPos = q.MinError();
+				minError = q * minPos;
+			} catch (nobnak.Algebra.SingularMatrixException) {
+				MinErrorOnEdge(vi0, vi1, q, out minPos, out minError);
+			}
+		}
+	
+		public void MinErrorOnEdge(VertexInfo vi0, VertexInfo vi1, Q q, out Vector3 bestPos, out float minError) {
+			var v0 = vertices[vi0.iVertex];
+			var v1 = vertices[vi1.iVertex];
+			var vmid = (v0 + v1) * 0.5f;
+			var errorV0 = q * v0;
+			var errorV1 = q * v1;
+			var errorVmid = q * vmid;
+			if (errorV0 < errorV1) {
+				if (errorV0 < errorVmid) {
+					bestPos = v0;
+					minError = errorV0;
+				} else {
+					bestPos = vmid;
+					minError = errorVmid;
+				}
+			} else {
+				if (errorV1 < errorVmid) {
+					bestPos = v1;
+					minError = errorV1;
+				} else {
+					bestPos = vmid;
+					minError = errorVmid;
+				}
+			}
+		}
 		
 		#region Inner Classes
 		public class VertexInfo {
@@ -193,6 +240,29 @@ namespace nobnak.Geometry {
 			
 			public override string ToString () {
 				return string.Format("Edge({0},{1})", v0, v1);
+			}
+		}
+		
+		public class EdgeCost {
+			public float cost;
+			public Edge edge;
+			
+			public EdgeCost(Edge edge, float cost) {
+				this.edge = edge;
+				this.cost = cost;
+			}
+			
+			public class Comparer : IComparer<EdgeCost> {
+				#region IComparer[System.Single] implementation
+				public int Compare (EdgeCost x, EdgeCost y) {
+					if (x.cost < y.cost)
+						return -1;
+					else if (x.cost == y.cost)
+						return 0;
+					else 
+						return 1;
+				}
+				#endregion
 			}
 		}
 		#endregion
