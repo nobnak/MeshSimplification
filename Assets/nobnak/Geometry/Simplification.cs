@@ -57,6 +57,17 @@ namespace nobnak.Geometry {
 			}
 		}
 		
+		public void CollapseEdge(Edge edge) {
+			var vi0 = vertexInfos[edge.v0];
+			var vi1 = vertexInfos[edge.v1];
+			var involvedFaces = new HashSet<Face>();
+			foreach (var f in vi0.faces)
+				involvedFaces.Add(f);
+			foreach (var f in vi1.faces)
+				involvedFaces.Add(f);
+			
+		}
+		
 		public void MinError(Edge edge, out Vector3 minPos, out float minError, out Q q) {
 			var vi0 = vertexInfos[edge.v0];
 			var vi1 = vertexInfos[edge.v1];
@@ -179,14 +190,22 @@ namespace nobnak.Geometry {
 			public Vector4 Plane(Vector3[] vertices) {
 				return Plane(vertices[v0], vertices[v1], vertices[v2]);
 			}
-			public static Vector4 Plane(Vector3 v0, Vector3 v1, Vector3 v2) {
-				var e1 = v1 - v0;
-				var e2 = v2 - v0;
-				var n = Vector3.Cross(e1, e2).normalized;
-				var d = Vector3.Dot(v0, n);
-				var sign = (d >= 0) ? +1f : -1f;
-				n *= sign;
-				return new Vector4(n.x, n.y, n.z, sign * d);
+			
+			public bool Contains(Edge edge) {
+				for (var i = 0; i < 3; i++) {
+					if (this[i] == edge.v0) {
+						return (this[i+1] == edge.v1 || this[i-1] == edge.v1);
+					}
+				}
+				return false;
+			}
+			
+			public override int GetHashCode () {
+				return 83 * (v0 + 151 * (v1 + 19 * v2));
+			}
+			public override bool Equals (object obj) {
+				var f = obj as Face;
+				return f != null && f.v0 == v0 && f.v1 == v1 && f.v2 == v2;
 			}
 			
 			public int this[int index] {
@@ -215,6 +234,16 @@ namespace nobnak.Geometry {
 						break;
 					}
 				}
+			}
+			
+			public static Vector4 Plane(Vector3 v0, Vector3 v1, Vector3 v2) {
+				var e1 = v1 - v0;
+				var e2 = v2 - v0;
+				var n = Vector3.Cross(e1, e2).normalized;
+				var d = Vector3.Dot(v0, n);
+				var sign = (d >= 0) ? +1f : -1f;
+				n *= sign;
+				return new Vector4(n.x, n.y, n.z, sign * d);
 			}
 		}
 		public class Edge {
