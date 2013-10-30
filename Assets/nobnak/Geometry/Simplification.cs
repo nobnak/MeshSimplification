@@ -53,11 +53,11 @@ namespace nobnak.Geometry {
 				float cost;
 				Q q;
 				MinError(edge, out pos, out cost, out q);
-				costs.Add(new EdgeCost(edge, cost));
+				costs.Add(new EdgeCost(edge, cost, pos));
 			}
 		}
 		
-		public void CollapseEdge(Edge edge) {
+		public void CollapseEdge(Edge edge, Vector3 minPos) {
 			var vi0 = vertexInfos[edge.v0];
 			var vi1 = vertexInfos[edge.v1];
 
@@ -95,6 +95,7 @@ namespace nobnak.Geometry {
 				f.Renumber(edge.v0, edge.v1);
 			vi0.faces.Clear();
 			vi1.faces = new LinkedList<Face>(involvedFaces);
+			vertices[vi1.iVertex] = minPos;
 		}
 		
 		public void ToMesh(out Vector3[] outVertices, out int[] outTriangles) {
@@ -110,16 +111,16 @@ namespace nobnak.Geometry {
 			
 			outVertices = new Vector3[vertexIndices.Count];
 			var faces = new HashSet<Face>();
-			var triangleStream = new List<int>();
 			for (var i = 0; i < outVertices.Length; i++) {
 				var vinfo = vertexInfos[vertexIndices[i]];
 				outVertices[i] = this.vertices[vinfo.iVertex];
-				foreach (var f in vinfo.faces) {
-					if (faces.Add(f)) {
-						for (var iv = 0; iv < 3; iv++) {
-							triangleStream.Add(indexMap[f[iv]]);
-						}
-					}
+				foreach (var f in vinfo.faces)
+					faces.Add(f);
+			}
+			var triangleStream = new List<int>();
+			foreach (var f in faces) {
+				for (var iv = 0; iv < 3; iv++) {
+					triangleStream.Add(indexMap[f[iv]]);
 				}
 			}
 			outTriangles = triangleStream.ToArray();
@@ -355,10 +356,12 @@ namespace nobnak.Geometry {
 		public class EdgeCost {
 			public float cost;
 			public Edge edge;
+			public Vector3 minPos;
 			
-			public EdgeCost(Edge edge, float cost) {
+			public EdgeCost(Edge edge, float cost, Vector3 minPos) {
 				this.edge = edge;
 				this.cost = cost;
+				this.minPos = minPos;
 			}
 			
 			public class Comparer : IComparer<EdgeCost> {

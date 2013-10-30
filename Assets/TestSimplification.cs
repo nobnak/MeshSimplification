@@ -7,7 +7,7 @@ using System.Text;
 public class TestSimplification : MonoBehaviour {
 
 	void Start () {
-		var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere).GetComponent<MeshFilter>().sharedMesh;
+		var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere).GetComponent<MeshFilter>().mesh;
 		Test01(sphere);		
 		Test02(sphere);
 	}
@@ -16,7 +16,7 @@ public class TestSimplification : MonoBehaviour {
 		var simp = new Simplification(sphere.vertices, sphere.triangles);
 		var edgeCost = simp.costs.RemoveFront();
 		Debug.Log("Edge Collapse : " + edgeCost.edge);
-		simp.CollapseEdge(edgeCost.edge);
+		simp.CollapseEdge(edgeCost.edge, edgeCost.minPos);
 		
 		Vector3[] vertices;
 		int[] triangles;
