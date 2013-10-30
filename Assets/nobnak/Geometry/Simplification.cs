@@ -60,12 +60,69 @@ namespace nobnak.Geometry {
 		public void CollapseEdge(Edge edge) {
 			var vi0 = vertexInfos[edge.v0];
 			var vi1 = vertexInfos[edge.v1];
+
 			var involvedFaces = new HashSet<Face>();
 			foreach (var f in vi0.faces)
 				involvedFaces.Add(f);
 			foreach (var f in vi1.faces)
 				involvedFaces.Add(f);
 			
+			var involvedVertices = new HashSet<VertexInfo>();
+			foreach (var f in involvedFaces) {
+				for (var iv = 0; iv < 3; iv++) {
+					involvedVertices.Add(vertexInfos[f[iv]]);
+				}
+			}
+			foreach (var vinfo in involvedVertices) {
+				var faceNode = vinfo.faces.First;
+				while (faceNode != null) {
+					var next = faceNode.Next;
+					if (faceNode.Value.Contains(edge))
+						vinfo.faces.Remove(faceNode);
+					faceNode = next;
+				}
+			}
+			
+			var collapsedFaces = new List<Face>();
+			foreach (var f in involvedFaces) {
+				if (f.Contains(edge))
+					collapsedFaces.Add(f);
+			}
+			foreach (var f in collapsedFaces)
+				involvedFaces.Remove(f);
+			
+			foreach (var f in involvedFaces)
+				f.Renumber(edge.v0, edge.v1);
+			vi0.faces.Clear();
+			vi1.faces = new LinkedList<Face>(involvedFaces);
+		}
+		
+		public void ToMesh(out Vector3[] outVertices, out int[] outTriangles) {
+			var vertexIndices = new List<int>(vertexInfos.Length);
+			foreach (var vinfo in vertexInfos) {
+				if (vinfo.faces.Count > 0)
+					vertexIndices.Add(vinfo.iVertex);
+			}
+			
+			var indexMap = new Dictionary<int, int>();
+			for (var i = 0; i < vertexIndices.Count; i++)
+				indexMap.Add(vertexIndices[i], i);
+			
+			outVertices = new Vector3[vertexIndices.Count];
+			var faces = new HashSet<Face>();
+			var triangleStream = new List<int>();
+			for (var i = 0; i < outVertices.Length; i++) {
+				var vinfo = vertexInfos[vertexIndices[i]];
+				outVertices[i] = this.vertices[vinfo.iVertex];
+				foreach (var f in vinfo.faces) {
+					if (faces.Add(f)) {
+						for (var iv = 0; iv < 3; iv++) {
+							triangleStream.Add(indexMap[f[iv]]);
+						}
+					}
+				}
+			}
+			outTriangles = triangleStream.ToArray();
 		}
 		
 		public void MinError(Edge edge, out Vector3 minPos, out float minError, out Q q) {
@@ -116,6 +173,14 @@ namespace nobnak.Geometry {
 				this.iVertex = vertexIndex;
 				this.faces = new LinkedList<Face>();
 				this.quad = new Q();
+			}
+			
+			public override int GetHashCode () {
+				return iVertex;
+			}
+			public override bool Equals (object obj) {
+				var vinfo = obj as VertexInfo;
+				return vinfo != null && vinfo.iVertex == iVertex;
 			}
 		}
 		
@@ -194,10 +259,24 @@ namespace nobnak.Geometry {
 			public bool Contains(Edge edge) {
 				for (var i = 0; i < 3; i++) {
 					if (this[i] == edge.v0) {
-						return (this[i+1] == edge.v1 || this[i-1] == edge.v1);
+						return (this[i+1] == edge.v1 || this[i+2] == edge.v1);
 					}
 				}
 				return false;
+			}
+			
+			public Face Renumber(int vPrev, int v) {
+				if (v0 == vPrev)
+					v0 = v;
+				if (v1 == vPrev)
+					v1 = v;
+				if (v2 == vPrev)
+					v2 = v;
+				return this;
+			}
+			
+			public override string ToString () {
+				return string.Format("Face({0},{1},{2})", v0, v1, v2);
 			}
 			
 			public override int GetHashCode () {
@@ -218,6 +297,7 @@ namespace nobnak.Geometry {
 					case 2:
 						return v2;
 					default:
+						Debug.Log("index % 3 = " + (index % 3));
 						throw new System.IndexOutOfRangeException();
 					}
 				}
