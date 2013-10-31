@@ -321,10 +321,8 @@ namespace nobnak.Geometry {
 				var e1 = v1 - v0;
 				var e2 = v2 - v0;
 				var n = Vector3.Cross(e1, e2).normalized;
-				var d = Vector3.Dot(v0, n);
-				var sign = (d >= 0) ? +1f : -1f;
-				n *= sign;
-				return new Vector4(n.x, n.y, n.z, sign * d);
+				var d = -Vector3.Dot(v0, n);
+				return new Vector4(n.x, n.y, n.z, d);
 			}
 		}
 		public class Edge {

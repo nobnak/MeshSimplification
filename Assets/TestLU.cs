@@ -9,6 +9,22 @@ public class TestLU : MonoBehaviour {
 	void Start() {
 		Test01();
 		Test02();
+		Test03();
+	}
+	
+	void Test03() {
+		var A = new float[]{
+			-1, 1, 1,
+			1, -1, 1,
+			1, 1, -1
+		};
+		var lu = new LU(A, 3);
+		
+		var b = new float[]{ -3, 1, 1 };
+		var refX = new float[]{ 1, -1, -1 };
+		var x = new float[3];
+		lu.Solve(b, ref x);
+		AssertX(b, refX);
 	}
 	
 	void Test02() {

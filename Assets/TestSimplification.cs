@@ -15,22 +15,15 @@ public class TestSimplification : MonoBehaviour {
 	static void Test02 (Mesh sphere) {
 		var simp = new Simplification(sphere.vertices, sphere.triangles);
 		var edgeCost = simp.costs.RemoveFront();
-		Debug.Log("Edge Collapse : " + edgeCost.edge);
+		Debug.Log(string.Format("Edge Collapse : Before v0={0},v1={1} After v={2}", 
+			sphere.vertices[edgeCost.edge.v0], sphere.vertices[edgeCost.edge.v1], edgeCost.minPos));
 		simp.CollapseEdge(edgeCost.edge, edgeCost.minPos);
 		
 		Vector3[] vertices;
 		int[] triangles;
 		simp.ToMesh(out vertices, out triangles);
 		Debug.Log(string.Format("Before:nVert={0},nTri={1} After:nVert={2},nTri={3}", sphere.vertices.Length, sphere.triangles.Length / 3, vertices.Length, triangles.Length / 3));
-		
-		var facesAfter = new HashSet<Face>();
-		for (var iTriAfter = 0; iTriAfter < triangles.Length; iTriAfter += 3)
-			facesAfter.Add(new Face(triangles[iTriAfter], triangles[iTriAfter+1], triangles[iTriAfter+2]));
-		for (var iTriBefore = 0; iTriBefore < sphere.triangles.Length; iTriBefore += 3) {
-			var fBefore = new Face(sphere.triangles[iTriBefore], sphere.triangles[iTriBefore+1], sphere.triangles[iTriBefore+2]);
-			if (!facesAfter.Contains(fBefore))
-				Debug.Log("Mismatch : " + fBefore);
-		}
+
 		
 		sphere.Clear();
 		sphere.vertices = vertices;
