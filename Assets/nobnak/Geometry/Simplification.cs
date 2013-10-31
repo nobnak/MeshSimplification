@@ -40,13 +40,8 @@ namespace nobnak.Geometry {
 				}
 			}
 			
-			foreach (var info in vertexInfos) {
-				foreach (var f in info.faces) {
-					var plane = f.Plane(vertices);
-					var K = new Q(plane);
-					info.quad += K;
-				}
-			}
+			foreach (var info in vertexInfos)
+				info.CalculateQuad(vertices);
 			
 			foreach (var edge in edges) {
 				Vector3 pos;
@@ -96,6 +91,8 @@ namespace nobnak.Geometry {
 			vi0.faces.Clear();
 			vi1.faces = new LinkedList<Face>(involvedFaces);
 			vertices[vi1.iVertex] = minPos;
+			
+			
 		}
 		
 		public void ToMesh(out Vector3[] outVertices, out int[] outTriangles) {
@@ -176,6 +173,14 @@ namespace nobnak.Geometry {
 				this.quad = new Q();
 			}
 			
+			public void CalculateQuad(Vector3[] vertices) {
+				foreach (var f in faces) {
+					var plane = f.Plane(vertices);
+					var K = new Q(plane);
+					quad += K;
+				}
+			}
+
 			public override int GetHashCode () {
 				return iVertex;
 			}
@@ -256,7 +261,6 @@ namespace nobnak.Geometry {
 			public Vector4 Plane(Vector3[] vertices) {
 				return Plane(vertices[v0], vertices[v1], vertices[v2]);
 			}
-			
 			public bool Contains(Edge edge) {
 				for (var i = 0; i < 3; i++) {
 					if (this[i] == edge.v0) {
@@ -265,7 +269,6 @@ namespace nobnak.Geometry {
 				}
 				return false;
 			}
-			
 			public Face Renumber(int vPrev, int v) {
 				if (v0 == vPrev)
 					v0 = v;

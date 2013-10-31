@@ -12,6 +12,19 @@ public class TestBinaryHeap : MonoBehaviour {
 		for (var i = 0; i < list.Length; i++) {
 			bh.Add(list[i]);
 		}
+		for (var i = 0; i < bh.Count; i++) {
+			var val0 = bh[i];
+			var val1 = bh[bh.Find(val0)];
+			if (val0 != val1)
+				Debug.Log(string.Format("Wrong Index : {0}!={1}", val0, val1));
+		}
+		
+		bh[3] = 0;
+		var front = bh.RemoveFront();
+		if (front != 0)
+			Debug.Log("Front should be 0 but " + front);
+		bh.Add(4);
+		
 		for (var i = 0; i < refHeap.Length; i++) {
 			if (bh[i] != refHeap[i])
 				Debug.Log("Wrong Tree : " + i);

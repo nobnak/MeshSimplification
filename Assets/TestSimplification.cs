@@ -12,18 +12,24 @@ public class TestSimplification : MonoBehaviour {
 		Test01(sphere);		
 		Test02(sphere);
 	}
+	
+	void Update() {
+		if (Input.GetMouseButtonDown(0)) {
+			Test02(isoSphere.mesh);
+		}
+	}
 
 	static void Test02 (Mesh sphere) {
 		var simp = new Simplification(sphere.vertices, sphere.triangles);
 		var edgeCost = simp.costs.RemoveFront();
-		Debug.Log(string.Format("Edge Collapse : Before v0={0},v1={1} After v={2}", 
+		Debug.Log(string.Format("{0},{1}->{2}", 
 			sphere.vertices[edgeCost.edge.v0], sphere.vertices[edgeCost.edge.v1], edgeCost.minPos));
 		simp.CollapseEdge(edgeCost.edge, edgeCost.minPos);
 		
 		Vector3[] vertices;
 		int[] triangles;
 		simp.ToMesh(out vertices, out triangles);
-		Debug.Log(string.Format("Before:nVert={0},nTri={1} After:nVert={2},nTri={3}", sphere.vertices.Length, sphere.triangles.Length / 3, vertices.Length, triangles.Length / 3));
+		Debug.Log(string.Format("nVert({0}->{1}),nTri({2}->{3})", sphere.vertices.Length, vertices.Length, sphere.triangles.Length / 3, triangles.Length / 3));
 
 		
 		sphere.Clear();
