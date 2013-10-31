@@ -9,89 +9,18 @@ namespace nobnak.Geometry {
 		public Vector3[] vertices;
 		public int[] triangles;
 		public VertexInfo[] vertexInfos;
-		public HashSet<Edge> edges;
 		public BinaryHeap<EdgeCost> costs;
 		
 		public Simplification(Vector3[] vertices, int[] triangles) {
 			this.vertices = vertices;
 			this.triangles = triangles;
-			this.costs = new BinaryHeap<EdgeCost>(new EdgeCost.Comparer());
-			Build(vertices, triangles);
-		}
-		
-		public void Build(Vector3[] vertices, int[] triangles) {
-			vertexInfos = new VertexInfo[vertices.Length];
-			for (var i = 0; i < vertices.Length; i++)
-				vertexInfos[i] = new VertexInfo(i);
-
-			var faces = new Face[triangles.Length / 3];
-			edges = new HashSet<Edge>();
-			for (var i = 0; i < faces.Length; i++) {
-				var iTriangle = i * 3;
-				var f = new Face(triangles[iTriangle], triangles[iTriangle + 1], triangles[iTriangle + 2]);
-				faces[i] = f;
-				for (var iv = 0; iv < 3; iv++) {
-					var info = vertexInfos[f[iv]];
-					info.faces.AddLast(f);
-					
-					var edge = new Edge(f[iv], f[iv + 1]);
-					if (!edges.Contains(edge))
-						edges.Add(edge);
-				}
-			}
-			
-			foreach (var info in vertexInfos)
-				info.CalculateQuad(vertices);
-			
-			foreach (var edge in edges) {
-				Vector3 pos;
-				float cost;
-				Q q;
-				MinError(edge, out pos, out cost, out q);
-				costs.Add(new EdgeCost(edge, cost, pos));
-			}
+			this.vertexInfos = InitVertexInfos(vertices, triangles);
+			this.costs = InitCosts(vertices, vertexInfos);
 		}
 		
 		public void CollapseEdge(Edge edge, Vector3 minPos) {
 			var vi0 = vertexInfos[edge.v0];
 			var vi1 = vertexInfos[edge.v1];
-
-			var involvedFaces = new HashSet<Face>();
-			foreach (var f in vi0.faces)
-				involvedFaces.Add(f);
-			foreach (var f in vi1.faces)
-				involvedFaces.Add(f);
-			
-			var involvedVertices = new HashSet<VertexInfo>();
-			foreach (var f in involvedFaces) {
-				for (var iv = 0; iv < 3; iv++) {
-					involvedVertices.Add(vertexInfos[f[iv]]);
-				}
-			}
-			foreach (var vinfo in involvedVertices) {
-				var faceNode = vinfo.faces.First;
-				while (faceNode != null) {
-					var next = faceNode.Next;
-					if (faceNode.Value.Contains(edge))
-						vinfo.faces.Remove(faceNode);
-					faceNode = next;
-				}
-			}
-			
-			var collapsedFaces = new List<Face>();
-			foreach (var f in involvedFaces) {
-				if (f.Contains(edge))
-					collapsedFaces.Add(f);
-			}
-			foreach (var f in collapsedFaces)
-				involvedFaces.Remove(f);
-			
-			foreach (var f in involvedFaces)
-				f.Renumber(edge.v0, edge.v1);
-			vi0.faces.Clear();
-			vi1.faces = new LinkedList<Face>(involvedFaces);
-			vertices[vi1.iVertex] = minPos;
-			
 			
 		}
 		
@@ -123,7 +52,48 @@ namespace nobnak.Geometry {
 			outTriangles = triangleStream.ToArray();
 		}
 		
-		public void MinError(Edge edge, out Vector3 minPos, out float minError, out Q q) {
+		static VertexInfo[] InitVertexInfos (Vector3[] vertices, int[] triangles) {
+			var vertexInfos = new VertexInfo[vertices.Length];
+			for (var i = 0; i < vertices.Length; i++)
+				vertexInfos[i] = new VertexInfo(i);
+			
+			for (var iTriangle = 0; iTriangle < triangles.Length; iTriangle += 3) {
+				var f = new Face(triangles[iTriangle], triangles[iTriangle + 1], triangles[iTriangle + 2]);
+				for (var iv = 0; iv < 3; iv++) {
+					var info = vertexInfos[f[iv]];
+					info.faces.AddLast(f);
+				}
+			}
+			
+			foreach (var info in vertexInfos)
+				info.CalculateQuad(vertices);
+			
+			return vertexInfos;
+		}
+
+		static BinaryHeap<EdgeCost> InitCosts (Vector3[] vertices, VertexInfo[] vertexInfos) {
+			var costs = new BinaryHeap<EdgeCost>(new EdgeCost.Comparer());
+			var edges = new HashSet<Edge>();
+			foreach (var vinfo in vertexInfos) {
+				foreach (var f in vinfo.faces) {
+					for (var iv = 0; iv < 3; iv++) {
+						var edge = new Edge(f[iv], f[iv + 1]);
+						if (!edges.Contains(edge))
+							edges.Add(edge);
+					}
+				}
+			}
+			foreach (var edge in edges) {
+				Vector3 pos;
+				float cost;
+				Q q;
+				MinError(vertices, vertexInfos, edge, out pos, out cost, out q);
+				costs.Add(new EdgeCost(edge, cost, pos, q));
+			}
+			return costs;
+		}
+	
+		static void MinError(Vector3[] vertices, VertexInfo[] vertexInfos, Edge edge, out Vector3 minPos, out float minError, out Q q) {
 			var vi0 = vertexInfos[edge.v0];
 			var vi1 = vertexInfos[edge.v1];
 			q = vi0.quad + vi1.quad;
@@ -131,11 +101,11 @@ namespace nobnak.Geometry {
 				minPos = q.MinError();
 				minError = q * minPos;
 			} catch (nobnak.Algebra.SingularMatrixException) {
-				MinErrorOnEdge(vi0, vi1, q, out minPos, out minError);
+				MinErrorOnEdge(vertices, vi0, vi1, q, out minPos, out minError);
 			}
 		}
-	
-		public void MinErrorOnEdge(VertexInfo vi0, VertexInfo vi1, Q q, out Vector3 bestPos, out float minError) {
+
+		static void MinErrorOnEdge(Vector3[] vertices, VertexInfo vi0, VertexInfo vi1, Q q, out Vector3 bestPos, out float minError) {
 			var v0 = vertices[vi0.iVertex];
 			var v1 = vertices[vi1.iVertex];
 			var vmid = (v0 + v1) * 0.5f;
@@ -341,6 +311,10 @@ namespace nobnak.Geometry {
 				}
 			}
 			
+			public bool Contains(int v) {
+				return v0 == v || v1 == v;
+			}
+			
 			public override int GetHashCode () {
 				return 71 * (v0 + 19 * v1);
 			}
@@ -358,11 +332,13 @@ namespace nobnak.Geometry {
 			public float cost;
 			public Edge edge;
 			public Vector3 minPos;
+			public Q quad;
 			
-			public EdgeCost(Edge edge, float cost, Vector3 minPos) {
+			public EdgeCost(Edge edge, float cost, Vector3 minPos, Q quad) {
 				this.edge = edge;
 				this.cost = cost;
 				this.minPos = minPos;
+				this.quad = quad;
 			}
 			
 			public class Comparer : IComparer<EdgeCost> {
