@@ -5,9 +5,10 @@ using System.Collections.Generic;
 using System.Text;
 
 public class TestSimplification : MonoBehaviour {
+	public MeshFilter isoSphere;
 
 	void Start () {
-		var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere).GetComponent<MeshFilter>().mesh;
+		var sphere = isoSphere.mesh;
 		Test01(sphere);		
 		Test02(sphere);
 	}
