@@ -3,13 +3,13 @@ using System.Collections.Generic;
 
 namespace nobnak.Collection {
 
-	public class BinaryHeap<T> {
+	public class BinaryHeap<T> : IEnumerable<T> {
 		private IComparer<T> _comp;
-		private IndexedList<T> _heap;
+		private List<T> _heap;
 		
 		public BinaryHeap(IComparer<T> comp) {
 			this._comp = comp;
-			this._heap = new IndexedList<T>();
+			this._heap = new List<T>();
 		}
 		
 		public void Add(T val) {
@@ -20,27 +20,49 @@ namespace nobnak.Collection {
 			var result = _heap[0];
 			var back = _heap.Count - 1;
 			_heap[0] = _heap[back];
-			_heap.RemoveLast();
+			_heap.RemoveAt(back);
 			Descend(0);
 			return result;
 		}
-		public int Find(T val) {
-			return _heap.Find(val);
+		public T Remove(int i) {
+			var removed = _heap[i];
+			if (i == _heap.Count - 1) {
+				_heap.RemoveAt(i);
+				return removed;
+			}
+			
+			_heap[i] = _heap[_heap.Count-1];
+			_heap.RemoveAt(_heap.Count-1);
+			Descend(i);
+			
+			return removed;
 		}
-		public void Update(int i, T val) {
-			_heap[i] = val;
-			var parent = Parent(i);
-			if (parent >= 0 && _comp.Compare(_heap[parent], _heap[i]) > 0)
-				Ascend(i);
-			else
-				Descend(i);
+		public int Find(T query) {
+			return Find (query, 0);
+		}
+		public int Find(T query, int parent) {
+			var compared = _comp.Compare(query, _heap[parent]);
+			if (compared == 0)
+				return parent;
+			if (compared < 0)
+				return -1;
+			
+			var left = LeftChild(parent);
+			for (var i = 0; i < 2; i++) {
+				var child = left + i;
+				if (child < _heap.Count) {
+					var found = Find (query, child);
+					if (found >= 0)
+						return found;
+				}
+			}
+			return -1;
 		}
 		
 		public T Front { get { return _heap[0]; } }
 		public int Count { get { return _heap.Count; } }
 		public T this[int index] { 
 			get { return _heap[index]; } 
-			set{ Update(index, value); }
 		}
 
 		void Ascend (int child) {
@@ -71,40 +93,17 @@ namespace nobnak.Collection {
 		public static int LeftChild(int parent) {
 			return (parent << 1) + 1;
 		}
-		
-		public class IndexedList<T> {
-			private Dictionary<T, int> _index;
-			private List<T> _list;
-			
-			public IndexedList() {
-				_index = new Dictionary<T, int>();
-				_list = new List<T>();
-			}
-			
-			public T this[int i]{
-				get {
-					return _list[i];
-				}
-				set {
-					_index[value] = i;
-					_list[i] = value;
-				}
-			}
-			public void Add(T val) {
-				_index[val] = _list.Count;
-				_list.Add(val);
-			}
-			public T RemoveLast() {
-				var last = _list[_list.Count - 1];
-				_index.Remove(last);
-				_list.RemoveAt(_list.Count - 1);
-				return last;
-			}
-			public int Find(T val) {
-				return _index[val];
-			}
-			
-			public int Count { get { return _list.Count; } }
+
+		#region IEnumerable[T] implementation
+		public IEnumerator<T> GetEnumerator () {
+			return _heap.GetEnumerator();
 		}
+		#endregion
+
+		#region IEnumerable implementation
+		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator () {
+			return _heap.GetEnumerator();
+		}
+		#endregion
 	}
 }

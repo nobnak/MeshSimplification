@@ -12,19 +12,12 @@ public class TestBinaryHeap : MonoBehaviour {
 		for (var i = 0; i < list.Length; i++) {
 			bh.Add(list[i]);
 		}
-		for (var i = 0; i < bh.Count; i++) {
-			var val0 = bh[i];
-			var val1 = bh[bh.Find(val0)];
-			if (val0 != val1)
-				Debug.Log(string.Format("Wrong Index : {0}!={1}", val0, val1));
+		
+		for (var i = 0; i < refHeap.Length; i++) {
+			var found = bh.Find(bh[i]);
+			if (found != i)
+				Debug.Log(string.Format("Wrong Index : found({0})=ref({1})", found, i));
 		}
-		
-		bh[3] = 0;
-		var front = bh.RemoveFront();
-		if (front != 0)
-			Debug.Log("Front should be 0 but " + front);
-		bh.Add(4);
-		
 		for (var i = 0; i < refHeap.Length; i++) {
 			if (bh[i] != refHeap[i])
 				Debug.Log("Wrong Tree : " + i);
@@ -35,6 +28,17 @@ public class TestBinaryHeap : MonoBehaviour {
 		}
 		if (bh.Count != 0)
 			Debug.Log("Wrong List");
+		
+		for (var i = 0; i < list.Length; i++)
+			bh.Add(list[i]);
+		for (var i = 0; i < list.Length; i++) {
+			var found = bh.Find(list[i]);
+			var removed = bh.Remove(found);
+			if (removed != list[i])
+				Debug.Log(string.Format("Wrong Remove {0}={1}", removed, list[i]));
+		}
+		if (bh.Count != 0)
+			Debug.Log("Wrong Remove");
 	}
 	
 	// Update is called once per frame

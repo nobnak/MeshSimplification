@@ -18,10 +18,56 @@ namespace nobnak.Geometry {
 			this.costs = InitCosts(vertices, vertexInfos);
 		}
 		
-		public void CollapseEdge(Edge edge, Vector3 minPos) {
+		public void CollapseEdge(EdgeCost edgeCost) {
+			var edge = edgeCost.edge;
 			var vi0 = vertexInfos[edge.v0];
 			var vi1 = vertexInfos[edge.v1];
 			
+			var icost = 0;
+			while (icost < costs.Count) {
+				var cost = costs[icost];
+				if (cost.edge.Contains(edge.v0) || cost.edge.Contains(edge.v1))
+					costs.Remove(icost);
+				else
+					icost++;
+			}
+			
+			var vinfosHavingCollapsedFaces = new HashSet<VertexInfo>();
+			foreach (var f in vi0.faces) {
+				if (f.Contains(edge)) {
+					vinfosHavingCollapsedFaces.Add(vertexInfos[f[0]]);
+					vinfosHavingCollapsedFaces.Add(vertexInfos[f[1]]);
+					vinfosHavingCollapsedFaces.Add(vertexInfos[f[2]]);
+				}
+			}
+			foreach (var vinfo in vinfosHavingCollapsedFaces) {
+				var node = vinfo.faces.First;
+				while (node != null) {
+					var next = node.Next;
+					if (node.Value.Contains(edge))
+						vinfo.faces.Remove(node);
+					node = next;
+				}
+			}
+			
+			foreach (var f in vi0.faces) {
+				f.Renumber(edge.v0, edge.v1);
+				vi1.faces.AddLast(f);
+			}
+			vi0.faces.Clear();
+			
+			vertices[vi1.iVertex] = edgeCost.minPos;
+			vi1.quad = edgeCost.quad;
+			var v1edges = new HashSet<Edge>();
+			foreach (var f in vi1.faces) {
+				for (var round = 0; round < 3; round++) {
+					var v1edge = new Edge(f[round], f[round+1]);
+					if (v1edge.Contains(vi1.iVertex) && !v1edges.Contains(v1edge)) {
+						costs.Add(v1edge.ToCost(vertices, vertexInfos));
+						v1edges.Add(v1edge);
+					}
+				}
+			}
 		}
 		
 		public void ToMesh(out Vector3[] outVertices, out int[] outTriangles) {
@@ -83,13 +129,8 @@ namespace nobnak.Geometry {
 					}
 				}
 			}
-			foreach (var edge in edges) {
-				Vector3 pos;
-				float cost;
-				Q q;
-				MinError(vertices, vertexInfos, edge, out pos, out cost, out q);
-				costs.Add(new EdgeCost(edge, cost, pos, q));
-			}
+			foreach (var edge in edges)
+				costs.Add(edge.ToCost(vertices, vertexInfos));
 			return costs;
 		}
 	
@@ -313,6 +354,14 @@ namespace nobnak.Geometry {
 			
 			public bool Contains(int v) {
 				return v0 == v || v1 == v;
+			}
+			
+			public EdgeCost ToCost(Vector3[] vertices, VertexInfo[] vertexInfos) {
+				Vector3 pos;
+				float cost;
+				Q q;
+				MinError(vertices, vertexInfos, this, out pos, out cost, out q);
+				return new EdgeCost(this, cost, pos, q);
 			}
 			
 			public override int GetHashCode () {
