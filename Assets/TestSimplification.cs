@@ -5,24 +5,42 @@ using System.Collections.Generic;
 using System.Text;
 
 public class TestSimplification : MonoBehaviour {
-	public MeshFilter isoSphere;
+	public TestIsosphere isoSphere;
 	
 	private Simplification _simp;
+	private Mesh _sphere;
 
 	void Start () {
-		var sphere = isoSphere.mesh;
+		_sphere = isoSphere.GetComponent<MeshFilter>().mesh;
+		_simp = new Simplification(_sphere.vertices, _sphere.triangles);
 		
-		_simp = new Simplification(sphere.vertices, sphere.triangles);
-		
-		Test02(sphere);
+		StartCoroutine("IncrementalSimplify");
 	}
 	
-	void Update() {
-		if (Input.GetMouseButton(0))
-			Test02(isoSphere.mesh);
+	void OnGUI() {
+		GUILayout.BeginHorizontal();
+		var buf = new StringBuilder();
+		buf.AppendFormat("Vertex:{0}\n", _sphere.vertexCount);
+		buf.AppendFormat("Triangle:{0}", _sphere.triangles.Length / 3);
+		GUILayout.TextField(buf.ToString());
+		GUILayout.EndHorizontal();
 	}
-
-	void Test02 (Mesh sphere) {
+	
+	IEnumerator IncrementalSimplify() {
+		while (true) {
+			yield return 0;
+			if (_sphere.triangles.Length < 66) {
+				yield return new WaitForSeconds(3f);
+				isoSphere.Reset();
+				_sphere = isoSphere.GetComponent<MeshFilter>().mesh;
+				_simp = new Simplification(_sphere.vertices, _sphere.triangles);
+			}
+				
+			CollapseAnEdge(_sphere);
+		}
+	}
+	
+	void CollapseAnEdge (Mesh sphere) {
 		var edgeCost = _simp.costs.RemoveFront();
 
 		_simp.CollapseEdge(edgeCost);
@@ -30,8 +48,6 @@ public class TestSimplification : MonoBehaviour {
 		Vector3[] vertices;
 		int[] triangles;
 		_simp.ToMesh(out vertices, out triangles);
-		
-		Debug.Log(string.Format("Vertex {0}->{1} Face {2}->{3}", sphere.vertices.Length, vertices.Length, sphere.triangles.Length / 3, triangles.Length / 3));
 		
 		sphere.Clear();
 		sphere.vertices = vertices;
