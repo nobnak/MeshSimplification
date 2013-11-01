@@ -12,6 +12,9 @@ public class TestSimplificationThread : MonoBehaviour {
 	private Simplification _simp;
 	private Mesh _sphere;
 	private bool _reductionInProgress = false;
+	
+	private Vector3[] _outVertices;
+	private int[] _outTriangles;	
 
 	void Start () {
 		_sphere = isoSphere.GetComponent<MeshFilter>().mesh;
@@ -39,7 +42,8 @@ public class TestSimplificationThread : MonoBehaviour {
 			}
 			
 			_reductionInProgress = true;
-			UpdateSphere();
+			if (_outVertices != null)
+				UpdateSphere();
 			var targetEdgeCount = (int)(bulkReduction * _simp.costs.Count);
 			ThreadPool.QueueUserWorkItem(new WaitCallback(Reduction), targetEdgeCount);
 		}
@@ -51,6 +55,7 @@ public class TestSimplificationThread : MonoBehaviour {
 			while (targetEdgeCount < _simp.costs.Count) {
 				CollapseAnEdge();
 			}
+			_simp.ToMesh(out _outVertices, out _outTriangles);
 		}finally {
 			lock(this) {
 				_reductionInProgress = false;
@@ -64,9 +69,6 @@ public class TestSimplificationThread : MonoBehaviour {
 	}
 	
 	void UpdateSphere() {
-		Vector3[] _outVertices;
-		int[] _outTriangles;
-		_simp.ToMesh(out _outVertices, out _outTriangles);
 		_sphere.Clear();
 		_sphere.vertices = _outVertices;
 		_sphere.triangles = _outTriangles;
