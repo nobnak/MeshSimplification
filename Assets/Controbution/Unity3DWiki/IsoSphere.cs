@@ -61,7 +61,7 @@ public static class IsoSphere
         Dictionary<long, int> middlePointIndexCache = new Dictionary<long, int>();
         int index = 0;
  
-        int recursionLevel = 3;
+        int recursionLevel = 5;
         float radius = 1f;
  
         // create 12 vertices of a icosahedron

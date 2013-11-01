@@ -6,6 +6,8 @@ using nobnak.Collection;
 
 namespace nobnak.Geometry {
 	public class Simplification {
+		public static float penaltyFactor = 1000f;
+
 		public Vector3[] vertices;
 		public int[] triangles;
 		public VertexInfo[] vertexInfos;
@@ -119,18 +121,31 @@ namespace nobnak.Geometry {
 
 		static BinaryHeap<EdgeCost> InitCosts (Vector3[] vertices, VertexInfo[] vertexInfos) {
 			var costs = new BinaryHeap<EdgeCost>(new EdgeCost.Comparer());
-			var edges = new HashSet<Edge>();
+			var edges = new HashCounter<Edge>();
 			foreach (var vinfo in vertexInfos) {
 				foreach (var f in vinfo.faces) {
 					for (var iv = 0; iv < 3; iv++) {
 						var edge = new Edge(f[iv], f[iv + 1]);
-						if (!edges.Contains(edge))
-							edges.Add(edge);
+						edges[edge]++;
 					}
 				}
 			}
-			foreach (var edge in edges)
-				costs.Add(edge.ToCost(vertices, vertexInfos));
+			foreach (var edge in edges) {
+				var cost = edge.ToCost(vertices, vertexInfos);
+				if (edges[edge] == 1) {
+					var vinfo = vertexInfos[edge.v0];
+					Face found = null;
+					foreach (var f in vinfo.faces) {
+						if (f.Contains(edge)) {
+							found = f;
+							break;
+						}
+					}
+					var q = new Q(found.PerpendicularPlane(vertices, edge));
+					cost.quad += q * penaltyFactor;
+				}
+				costs.Add(cost);
+			}
 			return costs;
 		}
 	
@@ -271,6 +286,12 @@ namespace nobnak.Geometry {
 			
 			public Vector4 Plane(Vector3[] vertices) {
 				return Plane(vertices[v0], vertices[v1], vertices[v2]);
+			}
+			public Vector4 PerpendicularPlane(Vector3[] vertices, Edge edge) {
+				var e1 = vertices[v1] - vertices[v0];
+				var e2 = vertices[v2] - vertices[v0];
+				var n = Vector3.Cross(e1, e2);
+				return Plane(vertices[v1], vertices[v2], n + vertices[v0]);
 			}
 			public bool Contains(Edge edge) {
 				for (var i = 0; i < 3; i++) {
