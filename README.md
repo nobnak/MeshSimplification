@@ -1,4 +1,4 @@
-LU
+Mesh Simplification
 ==
 Unity 3D 用のメッシュ簡略化アルゴリズム。
 
