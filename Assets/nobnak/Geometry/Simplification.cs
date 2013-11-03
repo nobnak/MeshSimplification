@@ -6,18 +6,20 @@ using nobnak.Collection;
 
 namespace nobnak.Geometry {
 	public class Simplification {
-		public static float penaltyFactor = 1000f;
+	public static float penaltyFactor = 1000f;
 
 		public Vector3[] vertices;
 		public int[] triangles;
 		public VertexInfo[] vertexInfos;
 		public BinaryHeap<EdgeCost> costs;
+		public FaceDatabase faceDb;
 		
 		public Simplification(Vector3[] vertices, int[] triangles) {
 			this.vertices = vertices;
 			this.triangles = triangles;
-			this.vertexInfos = InitVertexInfos(vertices, triangles);
-			this.costs = InitCosts(vertices, vertexInfos);
+			this.vertexInfos = InitVertexInfos();
+			this.costs = InitCosts();
+			this.faceDb = new FaceDatabase();
 		}
 		
 		public void CollapseEdge(EdgeCost edgeCost) {
@@ -35,7 +37,8 @@ namespace nobnak.Geometry {
 			}
 			
 			var vinfosHavingCollapsedFaces = new HashSet<VertexInfo>();
-			foreach (var f in vi0.faces) {
+			var faces = faceDb.GetAdjacentFaces(vi0.iVertex);
+			foreach (var f in faces) {
 				if (f.Contains(edge)) {
 					vinfosHavingCollapsedFaces.Add(vertexInfos[f[0]]);
 					vinfosHavingCollapsedFaces.Add(vertexInfos[f[1]]);
@@ -65,7 +68,7 @@ namespace nobnak.Geometry {
 				for (var round = 0; round < 3; round++) {
 					var v1edge = new Edge(f[round], f[round+1]);
 					if (v1edge.Contains(vi1.iVertex) && !v1edges.Contains(v1edge)) {
-						costs.Add(v1edge.ToCost(vertices, vertexInfos));
+						costs.Add(v1edge.ToCost(this));
 						v1edges.Add(v1edge);
 					}
 				}
@@ -100,7 +103,7 @@ namespace nobnak.Geometry {
 			outTriangles = triangleStream.ToArray();
 		}
 		
-		static VertexInfo[] InitVertexInfos (Vector3[] vertices, int[] triangles) {
+		VertexInfo[] InitVertexInfos () {
 			var vertexInfos = new VertexInfo[vertices.Length];
 			for (var i = 0; i < vertices.Length; i++)
 				vertexInfos[i] = new VertexInfo(i);
@@ -119,7 +122,7 @@ namespace nobnak.Geometry {
 			return vertexInfos;
 		}
 
-		static BinaryHeap<EdgeCost> InitCosts (Vector3[] vertices, VertexInfo[] vertexInfos) {
+		BinaryHeap<EdgeCost> InitCosts () {
 			var costs = new BinaryHeap<EdgeCost>(new EdgeCost.Comparer());
 			var edges = new HashCounter<Edge>();
 			foreach (var vinfo in vertexInfos) {
@@ -131,25 +134,13 @@ namespace nobnak.Geometry {
 				}
 			}
 			foreach (var edge in edges) {
-				var cost = edge.ToCost(vertices, vertexInfos);
-				if (edges[edge] == 1) {
-					var vinfo = vertexInfos[edge.v0];
-					Face found = null;
-					foreach (var f in vinfo.faces) {
-						if (f.Contains(edge)) {
-							found = f;
-							break;
-						}
-					}
-					var q = new Q(found.PerpendicularPlane(vertices, edge));
-					cost.quad += q * penaltyFactor;
-				}
+				var cost = edge.ToCost(this);
 				costs.Add(cost);
 			}
 			return costs;
 		}
 	
-		static void MinError(Vector3[] vertices, VertexInfo[] vertexInfos, Edge edge, out Vector3 minPos, out float minError, out Q q) {
+		void MinError(Edge edge, out Vector3 minPos, out float minError, out Quality q) {
 			var vi0 = vertexInfos[edge.v0];
 			var vi1 = vertexInfos[edge.v1];
 			q = vi0.quad + vi1.quad;
@@ -157,11 +148,11 @@ namespace nobnak.Geometry {
 				minPos = q.MinError();
 				minError = q * minPos;
 			} catch (nobnak.Algebra.SingularMatrixException) {
-				MinErrorOnEdge(vertices, vi0, vi1, q, out minPos, out minError);
+				MinErrorOnEdge(vi0, vi1, q, out minPos, out minError);
 			}
 		}
 
-		static void MinErrorOnEdge(Vector3[] vertices, VertexInfo vi0, VertexInfo vi1, Q q, out Vector3 bestPos, out float minError) {
+		void MinErrorOnEdge(VertexInfo vi0, VertexInfo vi1, Quality q, out Vector3 bestPos, out float minError) {
 			var v0 = vertices[vi0.iVertex];
 			var v1 = vertices[vi1.iVertex];
 			var vmid = (v0 + v1) * 0.5f;
@@ -186,23 +177,39 @@ namespace nobnak.Geometry {
 				}
 			}
 		}
+
+		public Vector4 GetPlane(Face f) {
+			return Plane.FromTriangle(vertices[f[0]], vertices[f[1]], vertices[f[2]]);
+		}
+		public Vector4 PerpendicularPlane(Face f, Edge e) {
+			var e1 = vertices[f[1]] - vertices[f[0]];
+			var e2 = vertices[f[2]] - vertices[f[0]];
+			var n = Vector3.Cross(e1, e2);
+			return Plane.FromTriangle(vertices[e.v0], vertices[e.v1], n + vertices[e.v0]);
+		}
+		public EdgeCost ToCost(Simplification simp) {
+			Vector3 pos;
+			float cost;
+			Quality q;
+			simp.MinError(this, out pos, out cost, out q);
+			return new EdgeCost(this, cost, pos, q);
+		}
 		
 		#region Inner Classes
 		public class VertexInfo {
 			public int iVertex;
-			public LinkedList<Face> faces;
-			public Q quad;
+			public Quality quad;
 			
 			public VertexInfo(int vertexIndex) {
 				this.iVertex = vertexIndex;
-				this.faces = new LinkedList<Face>();
-				this.quad = new Q();
+				this.quad = new Quality();
 			}
 			
-			public void CalculateQuad(Vector3[] vertices) {
+			public void CalculateQuad(Simplification simp) {
+				var faces = simp.faceDb.GetAdjacentFaces(iVertex);
 				foreach (var f in faces) {
-					var plane = f.Plane(vertices);
-					var K = new Q(plane);
+					var plane = GetPlane(f);
+					var K = new Quality(plane);
 					quad += K;
 				}
 			}
@@ -216,195 +223,13 @@ namespace nobnak.Geometry {
 			}
 		}
 		
-		public class Q {
-			public float[] matrix;
-			
-			public Q() {
-				this.matrix = new float[16];
-			}
-			public Q(Vector4 plane) : this(plane.x, plane.y, plane.z, plane.w) {}
-			public Q(float a, float b, float c, float d) {
-				matrix = new float[] {
-					a * a, a * b, a * c, a * d,
-					b * a, b * b, b * c, b * d,
-					c * a, c * b, c * c, c * d,
-					d * a, d * b, d * c, d * d,
-				};
-			}
-			
-			public static Q operator+(Q q0, Q q1) {
-				var q = new Q();
-				var mat = q.matrix;
-				var mq0 = q0.matrix;
-				var mq1 = q1.matrix;
-				for (var i = 0; i < mat.Length; i++)
-					mat[i] = mq0[i] + mq1[i];
-				return q;
-			}
-			public static Q operator*(Q q0, float multi) {
-				var q = new Q();
-				var mat = q.matrix;
-				var mq0 = q0.matrix;
-				for (var i = 0; i < mat.Length; i++)
-					mat[i] = multi * mq0[i];
-				return q;
-			}
-			public static float operator*(Q q0, Vector3 p) {
-				var m = q0.matrix;
-				return p.x * (m[ 0] * p.x + m[ 1] * p.y + m[ 2] * p.z + m[ 3])
-					 + p.y * (m[ 4] * p.x + m[ 5] * p.y + m[ 6] * p.z + m[ 7])
-					 + p.z * (m[ 8] * p.x + m[ 9] * p.y + m[10] * p.z + m[11])
-					 +       (m[12] * p.x + m[13] * p.y + m[14] * p.z + m[15]);
-			}
-			
-			public Vector3 MinError() {
-				var lu = new LU(Derivative(), 4);
-				lu.Decompose();
-				var x = new float[4];
-				lu.Solve(new float[]{ 0f, 0f, 0f, 1f}, ref x);
-				return new Vector3(x[0], x[1], x[2]);
-			}
-			public float[] Derivative() {
-				return new float[] {
-					matrix[ 0], matrix[ 1], matrix[ 2], matrix[ 3],
-					matrix[ 4], matrix[ 5], matrix[ 6], matrix[ 7],
-					matrix[ 8], matrix[ 9], matrix[10], matrix[11],
-					0f,         0f,         0f,         1f
-				};
-			}
-
-		}
-		
-		public class Face {
-			public int v0, v1, v2;
-			
-			public Face(int v0, int v1, int v2) {
-				this.v0 = v0;
-				this.v1 = v1;
-				this.v2 = v2;
-			}
-			
-			public Vector4 Plane(Vector3[] vertices) {
-				return Plane(vertices[v0], vertices[v1], vertices[v2]);
-			}
-			public Vector4 PerpendicularPlane(Vector3[] vertices, Edge edge) {
-				var e1 = vertices[v1] - vertices[v0];
-				var e2 = vertices[v2] - vertices[v0];
-				var n = Vector3.Cross(e1, e2);
-				return Plane(vertices[v1], vertices[v2], n + vertices[v0]);
-			}
-			public bool Contains(Edge edge) {
-				for (var i = 0; i < 3; i++) {
-					if (this[i] == edge.v0) {
-						return (this[i+1] == edge.v1 || this[i+2] == edge.v1);
-					}
-				}
-				return false;
-			}
-			public Face Renumber(int vPrev, int v) {
-				if (v0 == vPrev)
-					v0 = v;
-				if (v1 == vPrev)
-					v1 = v;
-				if (v2 == vPrev)
-					v2 = v;
-				return this;
-			}
-			
-			public override string ToString () {
-				return string.Format("Face({0},{1},{2})", v0, v1, v2);
-			}
-			
-			public override int GetHashCode () {
-				return 83 * (v0 + 151 * (v1 + 19 * v2));
-			}
-			public override bool Equals (object obj) {
-				var f = obj as Face;
-				return f != null && f.v0 == v0 && f.v1 == v1 && f.v2 == v2;
-			}
-			
-			public int this[int index] {
-				get {
-					switch (index % 3) {
-					case 0:
-						return v0;
-					case 1:
-						return v1;
-					case 2:
-						return v2;
-					default:
-						Debug.Log("index % 3 = " + (index % 3));
-						throw new System.IndexOutOfRangeException();
-					}
-				}
-				set {
-					switch (index % 3) {
-					case 0:
-						v0 = value;
-						break;
-					case 1:
-						v1 = value;
-						break;
-					case 2:
-						v2 = value;
-						break;
-					}
-				}
-			}
-			
-			public static Vector4 Plane(Vector3 v0, Vector3 v1, Vector3 v2) {
-				var e1 = v1 - v0;
-				var e2 = v2 - v0;
-				var n = Vector3.Cross(e1, e2).normalized;
-				var d = -Vector3.Dot(v0, n);
-				return new Vector4(n.x, n.y, n.z, d);
-			}
-		}
-		public class Edge {
-			public int v0, v1;
-			
-			public Edge(int v0, int v1) {
-				if (v0 < v1) {
-					this.v0 = v0;
-					this.v1 = v1;
-				} else {
-					this.v0 = v1;
-					this.v1 = v0;
-				}
-			}
-			
-			public bool Contains(int v) {
-				return v0 == v || v1 == v;
-			}
-			
-			public EdgeCost ToCost(Vector3[] vertices, VertexInfo[] vertexInfos) {
-				Vector3 pos;
-				float cost;
-				Q q;
-				MinError(vertices, vertexInfos, this, out pos, out cost, out q);
-				return new EdgeCost(this, cost, pos, q);
-			}
-			
-			public override int GetHashCode () {
-				return 71 * (v0 + 19 * v1);
-			}
-			public override bool Equals (object obj) {
-				var e = obj as Edge;
-				return (e != null && e.v0 == v0 && e.v1 == v1);
-			}
-			
-			public override string ToString () {
-				return string.Format("Edge({0},{1})", v0, v1);
-			}
-		}
-		
 		public class EdgeCost {
 			public float cost;
 			public Edge edge;
 			public Vector3 minPos;
-			public Q quad;
+			public Quality quad;
 			
-			public EdgeCost(Edge edge, float cost, Vector3 minPos, Q quad) {
+			public EdgeCost(Edge edge, float cost, Vector3 minPos, Quality quad) {
 				this.edge = edge;
 				this.cost = cost;
 				this.minPos = minPos;

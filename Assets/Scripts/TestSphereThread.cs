@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 
-public class TestSimplificationThread : MonoBehaviour {
+public class TestSphereThread : MonoBehaviour {
 	public TestIsosphere isoSphere;
 	public float bulkReduction = 0.5f;
 	
