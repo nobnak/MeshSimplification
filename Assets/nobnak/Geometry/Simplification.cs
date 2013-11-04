@@ -17,15 +17,13 @@ namespace nobnak.Geometry {
 		public Simplification(Vector3[] vertices, int[] triangles) {
 			this.vertices = vertices;
 			this.triangles = triangles;
+			this.faceDb = new FaceDatabase();
 			this.vertexInfos = InitVertexInfos();
 			this.costs = InitCosts();
-			this.faceDb = new FaceDatabase();
 		}
 		
 		public void CollapseEdge(EdgeCost edgeCost) {
 			var edge = edgeCost.edge;
-			var vi0 = vertexInfos[edge.v0];
-			var vi1 = vertexInfos[edge.v1];
 			
 			var icost = 0;
 			while (icost < costs.Count) {
@@ -36,66 +34,34 @@ namespace nobnak.Geometry {
 					icost++;
 			}
 			
-			var vinfosHavingCollapsedFaces = new HashSet<VertexInfo>();
-			var faces = faceDb.GetAdjacentFaces(vi0.iVertex);
-			foreach (var f in faces) {
-				if (f.Contains(edge)) {
-					vinfosHavingCollapsedFaces.Add(vertexInfos[f[0]]);
-					vinfosHavingCollapsedFaces.Add(vertexInfos[f[1]]);
-					vinfosHavingCollapsedFaces.Add(vertexInfos[f[2]]);
-				}
-			}
-			foreach (var vinfo in vinfosHavingCollapsedFaces) {
-				var node = vinfo.faces.First;
-				while (node != null) {
-					var next = node.Next;
-					if (node.Value.Contains(edge))
-						vinfo.faces.Remove(node);
-					node = next;
-				}
-			}
+			var collapsedFaces = faceDb.GetAdjacentFaces(edge);
+			foreach (var f in collapsedFaces)
+				faceDb.Remove(f);
 			
-			foreach (var f in vi0.faces) {
+			var v0faces = faceDb.GetAdjacentFaces(edge.v0);
+			foreach (var f in v0faces)
 				f.Renumber(edge.v0, edge.v1);
-				vi1.faces.AddLast(f);
-			}
-			vi0.faces.Clear();
 			
+			var vi1 = vertexInfos[edge.v1];
 			vertices[vi1.iVertex] = edgeCost.minPos;
 			vi1.quad = edgeCost.quad;
-			var v1edges = new HashSet<Edge>();
-			foreach (var f in vi1.faces) {
-				for (var round = 0; round < 3; round++) {
-					var v1edge = new Edge(f[round], f[round+1]);
-					if (v1edge.Contains(vi1.iVertex) && !v1edges.Contains(v1edge)) {
-						costs.Add(v1edge.ToCost(this));
-						v1edges.Add(v1edge);
-					}
-				}
-			}
+			foreach (var e in faceDb.GetAdjacentEdges(edge.v1))
+				costs.Add(ToCost(e));
 		}
 		
 		public void ToMesh(out Vector3[] outVertices, out int[] outTriangles) {
-			var vertexIndices = new List<int>(vertexInfos.Length);
-			foreach (var vinfo in vertexInfos) {
-				if (vinfo.faces.Count > 0)
-					vertexIndices.Add(vinfo.iVertex);
-			}
-			
+			var vertexIndices = new List<int>(faceDb.Vertices);
 			var indexMap = new Dictionary<int, int>();
 			for (var i = 0; i < vertexIndices.Count; i++)
 				indexMap.Add(vertexIndices[i], i);
 			
 			outVertices = new Vector3[vertexIndices.Count];
-			var faces = new HashSet<Face>();
 			for (var i = 0; i < outVertices.Length; i++) {
 				var vinfo = vertexInfos[vertexIndices[i]];
 				outVertices[i] = this.vertices[vinfo.iVertex];
-				foreach (var f in vinfo.faces)
-					faces.Add(f);
 			}
 			var triangleStream = new List<int>();
-			foreach (var f in faces) {
+			foreach (var f in faceDb.Faces) {
 				for (var iv = 0; iv < 3; iv++) {
 					triangleStream.Add(indexMap[f[iv]]);
 				}
@@ -109,15 +75,11 @@ namespace nobnak.Geometry {
 				vertexInfos[i] = new VertexInfo(i);
 			
 			for (var iTriangle = 0; iTriangle < triangles.Length; iTriangle += 3) {
-				var f = new Face(triangles[iTriangle], triangles[iTriangle + 1], triangles[iTriangle + 2]);
-				for (var iv = 0; iv < 3; iv++) {
-					var info = vertexInfos[f[iv]];
-					info.faces.AddLast(f);
-				}
+				var f = new Face(faceDb, triangles[iTriangle], triangles[iTriangle + 1], triangles[iTriangle + 2]);
 			}
 			
 			foreach (var info in vertexInfos)
-				info.CalculateQuad(vertices);
+				info.CalculateQuad(this);
 			
 			return vertexInfos;
 		}
@@ -125,16 +87,14 @@ namespace nobnak.Geometry {
 		BinaryHeap<EdgeCost> InitCosts () {
 			var costs = new BinaryHeap<EdgeCost>(new EdgeCost.Comparer());
 			var edges = new HashCounter<Edge>();
-			foreach (var vinfo in vertexInfos) {
-				foreach (var f in vinfo.faces) {
-					for (var iv = 0; iv < 3; iv++) {
-						var edge = new Edge(f[iv], f[iv + 1]);
-						edges[edge]++;
-					}
+			foreach (var f in faceDb.Faces) {
+				for (var iv = 0; iv < 3; iv++) {
+					var edge = new Edge(f[iv], f[iv + 1]);
+					edges[edge]++;
 				}
 			}
 			foreach (var edge in edges) {
-				var cost = edge.ToCost(this);
+				var cost = ToCost(edge);
 				costs.Add(cost);
 			}
 			return costs;
@@ -178,21 +138,21 @@ namespace nobnak.Geometry {
 			}
 		}
 
-		public Vector4 GetPlane(Face f) {
+		Vector4 GetPlane(Face f) {
 			return Plane.FromTriangle(vertices[f[0]], vertices[f[1]], vertices[f[2]]);
 		}
-		public Vector4 PerpendicularPlane(Face f, Edge e) {
+		Vector4 PerpendicularPlane(Face f, Edge e) {
 			var e1 = vertices[f[1]] - vertices[f[0]];
 			var e2 = vertices[f[2]] - vertices[f[0]];
 			var n = Vector3.Cross(e1, e2);
 			return Plane.FromTriangle(vertices[e.v0], vertices[e.v1], n + vertices[e.v0]);
 		}
-		public EdgeCost ToCost(Simplification simp) {
+		EdgeCost ToCost(Edge e) {
 			Vector3 pos;
 			float cost;
 			Quality q;
-			simp.MinError(this, out pos, out cost, out q);
-			return new EdgeCost(this, cost, pos, q);
+			MinError(e, out pos, out cost, out q);
+			return new EdgeCost(e, cost, pos, q);
 		}
 		
 		#region Inner Classes
@@ -208,12 +168,13 @@ namespace nobnak.Geometry {
 			public void CalculateQuad(Simplification simp) {
 				var faces = simp.faceDb.GetAdjacentFaces(iVertex);
 				foreach (var f in faces) {
-					var plane = GetPlane(f);
+					var plane = simp.GetPlane(f);
 					var K = new Quality(plane);
 					quad += K;
 				}
 			}
-
+			
+			#region Object
 			public override int GetHashCode () {
 				return iVertex;
 			}
@@ -221,6 +182,7 @@ namespace nobnak.Geometry {
 				var vinfo = obj as VertexInfo;
 				return vinfo != null && vinfo.iVertex == iVertex;
 			}
+			#endregion
 		}
 		
 		public class EdgeCost {

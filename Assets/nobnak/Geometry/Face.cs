@@ -4,12 +4,15 @@ using nobnak.Collection;
 namespace nobnak.Geometry {
 	public class FaceDatabase {
 		private Dictionary<int, LinkedList<Face>> _vertex2face;
+		private HashSet<Face> _faces;
 		
 		public FaceDatabase() {
 			this._vertex2face = new Dictionary<int, LinkedList<Face>>();
+			this._faces = new HashSet<Face>();
 		}
 		
 		public void Add(Face f) {
+			_faces.Add(f);
 			foreach (var v in f) {
 				var faces = _vertex2face.ContainsKey(v) ? _vertex2face[v] : _vertex2face[v] = new LinkedList<Face>();
 				if (!faces.Contains(f))
@@ -17,6 +20,7 @@ namespace nobnak.Geometry {
 			}
 		}
 		public void Remove(Face f) {
+			_faces.Remove(f);
 			foreach (var v in f) {
 				if (!_vertex2face.ContainsKey(v))
 					continue;
@@ -25,38 +29,73 @@ namespace nobnak.Geometry {
 			}
 		}
 		
-		public IEnumerable<Face> GetAdjacentFaces(int v) {
+		public Face[] GetAdjacentFaces(int v) {
 			if (!_vertex2face.ContainsKey(v))
-				yield break;
-			foreach (var f in _vertex2face[v])
-				yield return f;
+				return new Face[0];
+			var faces = _vertex2face[v];
+			var res = new Face[faces.Count];
+			faces.CopyTo(res, 0);
+			return res;
 		}
-		public IEnumerable<Face> GetAdjacentFaces(Edge e) {
-			return GetIntersection(new IEnumerable<Face>[] { GetAdjacentFaces(e.v0), GetAdjacentFaces(e.v1) });
+		public Face[] GetAdjacentFaces(Edge e) {
+			return GetIntersection(new Face[][] { GetAdjacentFaces(e.v0), GetAdjacentFaces(e.v1) });
+		}
+		public Edge[] GetAdjacentEdges(int v) {
+			var founds = new HashSet<Edge>();
+			foreach (var f in GetAdjacentFaces(v)) {
+				for (var i = 0; i < 3; i++) {
+					var edge = new Edge(f[i], f[i+1]);
+					if (!edge.Contains(v) || founds.Contains(edge))
+						continue;
+					founds.Add(edge);
+				}
+			}
+			var res = new Edge[founds.Count];
+			founds.CopyTo(res, 0);
+			return res;
 		}
 		
-		public IEnumerable<Face> GetIntersection(IEnumerable<Face>[] faceSets) {
+		public Face[] GetIntersection(IEnumerable<Face>[] faceSets) {
 			var counter = new HashCounter<Face>();
 			foreach (var faces in faceSets) {
 				foreach (var f in faces) {
 					counter[f]++;
 				}
 			}
+			var res = new List<Face>();
 			foreach (var f in counter) {
 				if (counter[f] == faceSets.Length)
-					yield return f;
+					res.Add(f);
 			}
+			return res.ToArray();
 		}
-		public IEnumerable<Face> GetUnion(IEnumerable<Face>[] faceSets) {
+		public Face[] GetUnion(IEnumerable<Face>[] faceSets) {
 			var founds = new HashSet<Face>();
 			foreach (var fset in faceSets) {
 				foreach (var f in fset) {
 					if (founds.Contains(f))
 						continue;
 					founds.Add(f);
-					yield return f;
 				}
 			}
+			var res = new Face[founds.Count];
+			founds.CopyTo(res, 0);
+			return res;
+		}
+
+		public IEnumerable<Face> Faces { 
+			get { 
+				var res = new Face[_faces.Count];
+				_faces.CopyTo(res, 0);
+				return res;
+			}
+		}
+		public IEnumerable<int> Vertices { 
+			get { 
+				var res = new int[_vertex2face.Keys.Count]; 
+				_vertex2face.Keys.CopyTo(res, 0);
+				return res;
+			} 
 		}
 	}
 
@@ -106,6 +145,17 @@ namespace nobnak.Geometry {
 		
 		public bool Contains(int v) {
 			return v0 == v || v1 == v || v2 == v;
+		}
+		
+		public void Renumber(int v0, int v1) {
+			_db.Remove(this);
+			if (_v0 == v0)
+				_v0 = v1;
+			if (_v1 == v0)
+				_v1 = v1;
+			if (_v2 == v0)
+				_v2 = v1;
+			_db.Add(this);
 		}
 		
 		public override string ToString () {
