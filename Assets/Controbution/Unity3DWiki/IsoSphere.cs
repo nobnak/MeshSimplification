@@ -59,7 +59,6 @@ public static class IsoSphere
  
         List<Vector3> vertList = new List<Vector3>();
         Dictionary<long, int> middlePointIndexCache = new Dictionary<long, int>();
-        int index = 0;
  
         int recursionLevel = 5;
         float radius = 1f;

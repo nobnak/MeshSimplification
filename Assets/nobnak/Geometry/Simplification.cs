@@ -6,7 +6,7 @@ using nobnak.Collection;
 
 namespace nobnak.Geometry {
 	public class Simplification {
-	public static float penaltyFactor = 1000f;
+		public float penaltyFactor = 1f;
 
 		public Vector3[] vertices;
 		public int[] triangles;
@@ -75,7 +75,7 @@ namespace nobnak.Geometry {
 				vertexInfos[i] = new VertexInfo(i);
 			
 			for (var iTriangle = 0; iTriangle < triangles.Length; iTriangle += 3) {
-				var f = new Face(faceDb, triangles[iTriangle], triangles[iTriangle + 1], triangles[iTriangle + 2]);
+				new Face(faceDb, triangles[iTriangle], triangles[iTriangle + 1], triangles[iTriangle + 2]);
 			}
 			
 			foreach (var info in vertexInfos)
@@ -104,6 +104,9 @@ namespace nobnak.Geometry {
 			var vi0 = vertexInfos[edge.v0];
 			var vi1 = vertexInfos[edge.v1];
 			q = vi0.quad + vi1.quad;
+			var faces = faceDb.GetAdjacentFaces(edge);
+			if (faces.Length == 1)
+				q += new Quality(PerpendicularPlane(faces[0], edge)) * penaltyFactor;
 			try { 
 				minPos = q.MinError();
 				minError = q * minPos;
