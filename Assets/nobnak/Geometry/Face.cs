@@ -26,6 +26,8 @@ namespace nobnak.Geometry {
 					continue;
 				var faces = _vertex2face[v];
 				faces.Remove(f);
+				if (faces.Count == 0)
+					_vertex2face.Remove(v);
 			}
 		}
 		
