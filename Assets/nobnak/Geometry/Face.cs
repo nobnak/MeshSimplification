@@ -141,34 +141,6 @@ namespace nobnak.Geometry {
 			return res;
 		}
 	}
-	
-	public static class EdgeExtension {
-		public static Edge[] GetIntersection(this Edge[] edges0, Edge[] edges1) {
-			var candidates = new HashSet<Edge>(edges0);
-			var res = new List<Edge>();
-			foreach (var e in edges1)
-				if (candidates.Contains(e))
-					res.Add(e);
-			return res.ToArray();
-		}
-		public static Edge[] GetUnion(this Edge[] edges0, Edge[] edges1) {
-			var founds = new HashSet<Edge>(edges0);
-			foreach (var e in edges1)
-				founds.Add(e);
-			var res = new Edge[founds.Count];
-			founds.CopyTo(res);
-			return res;
-		}
-		public static Edge[] Subtract(this Edge[] edges0, Edge[] edges1) {
-			var candidates = new HashSet<Edge>(edges0);
-			foreach (var e in edges1) {
-				candidates.Remove(e);
-			}
-			var res = new Edge[candidates.Count];
-			candidates.CopyTo(res);
-			return res;
-		}
-	}
 
 	public class Face : IEnumerable<int> {
 		private FaceDatabase _db;

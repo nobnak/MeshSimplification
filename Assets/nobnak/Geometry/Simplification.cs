@@ -8,7 +8,7 @@ using System.Text;
 namespace nobnak.Geometry {
 	public class Simplification {
 		public float boundaryPenalty = 1000f;
-		public float normalFlippingPenalty = 10f;
+		public float normalFlippingPenalty = 1000f;
 
 		public Vector3[] vertices;
 		public int[] triangles;
@@ -26,19 +26,16 @@ namespace nobnak.Geometry {
 		
 		public void CollapseEdge(EdgeCost edgeCost) {
 			var edge = edgeCost.edge;
-#if false
-			var nNormalFlippings = CountNormalFlipping(edge, edgeCost.minPos);
-			if (nNormalFlippings > 0) {
-				Debug.Log(string.Format("Normal-flipping count({0}) cost({1:e2}) at {2}", nNormalFlippings, edgeCost.cost, edge));
-			}
-#endif
 			
 			var invalidEdges = new HashSet<Edge>(faceDb.GetNormalFlippingCandidateEdges(edge));
 			var icost = 0;
-			while (icost < costs.Count && invalidEdges.Count > 0) {
+			var nCosts = costs.Count;
+			var nInvalidEdges = invalidEdges.Count;
+			while (icost < nCosts && nInvalidEdges > 0) {
 				var cost = costs[icost];
-				if (invalidEdges.Contains(cost.edge)) {
-					invalidEdges.Remove(cost.edge);
+				if (invalidEdges.Remove(cost.edge)) {
+					nInvalidEdges--;
+					nCosts--;
 					costs.Remove(icost);
 				} else {
 					icost++;
@@ -205,9 +202,11 @@ namespace nobnak.Geometry {
 			var q = new Quality(plane);
 			for (var i = 0; i < 3; i++) {
 				var edge = new Edge(f[i], f[i+1]);
+#if true
 				var adjFaces = faceDb.GetAdjacentFaces(edge);
 				if (adjFaces.Length == 1) 
 					q += new Quality(PerpendicularPlane(f, edge)) * boundaryPenalty;
+#endif
 			}
 			return q;
 		}

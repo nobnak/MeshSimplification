@@ -3,8 +3,8 @@ using System.Collections;
 using nobnak.Geometry;
 using System.Text;
 
-public class TestPlane : MonoBehaviour {
-	public PlaneObject planeObj;
+public class TestTorus : MonoBehaviour {
+	public TorusObject primitive;
 	public float updateInterval;
 	public bool interactive;
 	
@@ -13,7 +13,7 @@ public class TestPlane : MonoBehaviour {
 	private float _nextUpdateTime;
 	
 	void Start() {
-		_mesh = planeObj.GetComponent<MeshFilter>().mesh;
+		_mesh = primitive.GetComponent<MeshFilter>().mesh;
 		_simp = new Simplification(_mesh.vertices, _mesh.triangles);
 		
 		_nextUpdateTime = Time.time + updateInterval;
@@ -26,7 +26,7 @@ public class TestPlane : MonoBehaviour {
 		if (!interactive)
 			return;
 		
-		if (Input.GetMouseButtonDown(0)) {
+		if (Input.GetMouseButton(0)) {
 			_simp.CollapseEdge(_simp.costs.RemoveFront());
 			UpdateMesh();
 		}
@@ -51,7 +51,7 @@ public class TestPlane : MonoBehaviour {
 			if (_simp.costs.Count <= 5) {
 				UpdateMesh ();
 				yield return new WaitForSeconds(2f);
-				_mesh = planeObj.Reset();
+				_mesh = primitive.Reset();
 				_simp = new Simplification(_mesh.vertices, _mesh.triangles);
 			}
 			
