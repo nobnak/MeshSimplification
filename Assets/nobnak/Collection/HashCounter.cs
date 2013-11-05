@@ -8,7 +8,11 @@ namespace nobnak.Collection {
 		public HashCounter() {
 			_dict = new Dictionary<T, int>();
 		}
+		public HashCounter(int capasity) {
+			_dict = new Dictionary<T, int>(capasity);
+		}
 		
+		public int Count { get { return _dict.Keys.Count; } }
 		public int this[T key] {
 			get {
 				int val;

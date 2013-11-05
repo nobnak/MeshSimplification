@@ -40,7 +40,9 @@ namespace nobnak.Geometry {
 			return res;
 		}
 		public Face[] GetAdjacentFaces(Edge e) {
-			return GetIntersection(new Face[][] { GetAdjacentFaces(e.v0), GetAdjacentFaces(e.v1) });
+			var faces0 = GetAdjacentFaces(e.v0);
+			var faces1 = GetAdjacentFaces(e.v1);
+			return faces0.GetIntersection(faces1);
 		}
 		public Edge[] GetAdjacentEdges(int v) {
 			var founds = new HashSet<Edge>();
@@ -56,32 +58,41 @@ namespace nobnak.Geometry {
 			founds.CopyTo(res, 0);
 			return res;
 		}
-		
-		public Face[] GetIntersection(IEnumerable<Face>[] faceSets) {
-			var counter = new HashCounter<Face>();
-			foreach (var faces in faceSets) {
-				foreach (var f in faces) {
-					counter[f]++;
-				}
+		public Edge[] GetAdjacentEdges(params int[] vertices) {
+			var edges = new HashSet<Edge>();
+			foreach (var v in vertices) {
+				foreach (var adjEdge in GetAdjacentEdges(v))
+					edges.Add (adjEdge);
 			}
-			var res = new List<Face>();
-			foreach (var f in counter) {
-				if (counter[f] == faceSets.Length)
-					res.Add(f);
-			}
-			return res.ToArray();
+			var res = new Edge[edges.Count];
+			edges.CopyTo(res);
+			return res;
 		}
-		public Face[] GetUnion(IEnumerable<Face>[] faceSets) {
-			var founds = new HashSet<Face>();
-			foreach (var fset in faceSets) {
-				foreach (var f in fset) {
-					if (founds.Contains(f))
-						continue;
-					founds.Add(f);
-				}
+		public Face[] GetFillHoleFaces(Edge e) {
+			var v0faces = GetAdjacentFaces(e.v0);
+			var v1faces = GetAdjacentFaces(e.v1);
+			var faces = v0faces.GetUnion(v1faces);
+			var hole = v0faces.GetIntersection(v1faces);
+			return faces.Substract(hole);
+		}
+		public Edge[] GetNormalFlippingCandidateEdges(Edge e) {
+			var faces = GetAdjacentFaces(e.v0).GetUnion( GetAdjacentFaces(e.v1) );
+			var vertices = GetInvolvedVertices (faces);
+			return GetAdjacentEdges(vertices);
+		}
+		public Edge[] GetNormalFlippingCandidateEdges(int v) {
+			var faces = GetAdjacentFaces(v);
+			var vertices = GetInvolvedVertices(faces);
+			return GetAdjacentEdges(vertices);
+		}
+		public int[] GetInvolvedVertices(params Face[] faces) {
+			var vertices = new HashSet<int>();
+			foreach (var f in faces) {
+				foreach (var v in f)
+					vertices.Add(v);
 			}
-			var res = new Face[founds.Count];
-			founds.CopyTo(res, 0);
+			var res = new int[vertices.Count];
+			vertices.CopyTo(res);
 			return res;
 		}
 
@@ -98,6 +109,64 @@ namespace nobnak.Geometry {
 				_vertex2face.Keys.CopyTo(res, 0);
 				return res;
 			} 
+		}
+	}
+	
+	public static class FaceExtension {
+		public static Face[] GetIntersection(this Face[] faces0, Face[] faces1) {
+			var candidates = new HashSet<Face>(faces0);
+			var res = new List<Face>();
+			foreach (var f in faces1) {
+				if (candidates.Contains(f))
+					res.Add(f);
+			}
+			return res.ToArray();
+		}
+		public static Face[] GetUnion(this Face[] faces0, Face[] faces1) {
+			var founds = new HashSet<Face>(faces0);
+			foreach (var f in faces1) {
+				founds.Add(f);
+			}
+			var res = new Face[founds.Count];
+			founds.CopyTo(res);
+			return res;
+		}
+		public static Face[] Substract(this Face[] faces0, Face[] faces1) {
+			var candicates = new HashSet<Face>(faces0);
+			foreach (var f in faces1) {
+				candicates.Remove(f);
+			}
+			var res = new Face[candicates.Count];
+			candicates.CopyTo(res);
+			return res;
+		}
+	}
+	
+	public static class EdgeExtension {
+		public static Edge[] GetIntersection(this Edge[] edges0, Edge[] edges1) {
+			var candidates = new HashSet<Edge>(edges0);
+			var res = new List<Edge>();
+			foreach (var e in edges1)
+				if (candidates.Contains(e))
+					res.Add(e);
+			return res.ToArray();
+		}
+		public static Edge[] GetUnion(this Edge[] edges0, Edge[] edges1) {
+			var founds = new HashSet<Edge>(edges0);
+			foreach (var e in edges1)
+				founds.Add(e);
+			var res = new Edge[founds.Count];
+			founds.CopyTo(res);
+			return res;
+		}
+		public static Edge[] Subtract(this Edge[] edges0, Edge[] edges1) {
+			var candidates = new HashSet<Edge>(edges0);
+			foreach (var e in edges1) {
+				candidates.Remove(e);
+			}
+			var res = new Edge[candidates.Count];
+			candidates.CopyTo(res);
+			return res;
 		}
 	}
 

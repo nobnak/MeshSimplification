@@ -2,11 +2,13 @@ using UnityEngine;
 using System.Collections.Generic;
 using nobnak.Algebra;
 using nobnak.Collection;
+using System.Text;
 
 
 namespace nobnak.Geometry {
 	public class Simplification {
-		public float penaltyFactor = 1f;
+		public float boundaryPenalty = 1000f;
+		public float normalFlippingPenalty = 10000000f;
 
 		public Vector3[] vertices;
 		public int[] triangles;
@@ -24,14 +26,21 @@ namespace nobnak.Geometry {
 		
 		public void CollapseEdge(EdgeCost edgeCost) {
 			var edge = edgeCost.edge;
+			var nNormalFlippings = CountNormalFlipping(edge, edgeCost.minPos);
+			if (nNormalFlippings > 0) {
+				Debug.Log(string.Format("Normal-flipping count({0}) cost({1:e2}) at {2}", nNormalFlippings, edgeCost.cost, edge));
+			}
 			
+			var invalidEdges = new HashSet<Edge>(faceDb.GetNormalFlippingCandidateEdges(edge));
 			var icost = 0;
-			while (icost < costs.Count) {
+			while (icost < costs.Count && invalidEdges.Count > 0) {
 				var cost = costs[icost];
-				if (cost.edge.Contains(edge.v0) || cost.edge.Contains(edge.v1))
+				if (invalidEdges.Contains(cost.edge)) {
+					invalidEdges.Remove(cost.edge);
 					costs.Remove(icost);
-				else
+				} else {
 					icost++;
+				}
 			}
 			
 			var collapsedFaces = faceDb.GetAdjacentFaces(edge);
@@ -45,8 +54,8 @@ namespace nobnak.Geometry {
 			var vi1 = vertexInfos[edge.v1];
 			vertices[vi1.iVertex] = edgeCost.minPos;
 			vi1.quad = edgeCost.quad;
-			foreach (var e in faceDb.GetAdjacentEdges(edge.v1))
-				costs.Add(ToCost(e));
+			foreach (var e in faceDb.GetNormalFlippingCandidateEdges(edge.v1))
+				costs.Add(CalculateCost(e));
 		}
 		
 		public void ToMesh(out Vector3[] outVertices, out int[] outTriangles) {
@@ -97,7 +106,7 @@ namespace nobnak.Geometry {
 				}
 			}
 			foreach (var edge in edges) {
-				var cost = ToCost(edge);
+				var cost = CalculateCost(edge);
 				costs.Add(cost);
 			}
 			return costs;
@@ -144,17 +153,48 @@ namespace nobnak.Geometry {
 		Vector4 GetPlane(Face f) {
 			return Plane.FromTriangle(vertices[f[0]], vertices[f[1]], vertices[f[2]]);
 		}
-		Vector4 PerpendicularPlane(Face f, Edge e) {
+		Vector3 GetNormal(Face f) {
 			var e1 = vertices[f[1]] - vertices[f[0]];
 			var e2 = vertices[f[2]] - vertices[f[0]];
-			var n = Vector3.Cross(e1, e2);
+			return Vector3.Cross(e1, e2);
+		}
+		Vector3 GetNormal(Vector3 v0, Vector3 v1, Vector3 v2) {
+			var e1 = v1 - v0;
+			var e2 = v2 - v0;
+			return Vector3.Cross(e1, e2);
+		}
+		Vector4 PerpendicularPlane(Face f, Edge e) {
+			var n = GetNormal(f);
 			return Plane.FromTriangle(vertices[e.v0], vertices[e.v1], n + vertices[e.v0]);
 		}
-		EdgeCost ToCost(Edge e) {
+		int CountNormalFlipping(Edge e, Vector3 minPos) {
+			var fillingFaces = faceDb.GetFillHoleFaces(e);
+			var normalsBefore = new Vector3[fillingFaces.Length];
+			var normalsAfter = new Vector3[fillingFaces.Length];
+			for (var i = 0; i < fillingFaces.Length; i++) {
+				var f = fillingFaces[i];
+				normalsBefore[i] = GetNormal(f);
+				normalsAfter[i] = GetNormal(
+					e.Contains(f[0]) ? minPos : vertices[f[0]],
+					e.Contains(f[1]) ? minPos : vertices[f[1]],
+					e.Contains(f[2]) ? minPos : vertices[f[2]]);
+			}
+			var counter = 0;
+			for (var i = 0; i < normalsBefore.Length; i++) {
+				if (Vector3.Dot(normalsBefore[i], normalsAfter[i]) <= 0)
+					counter++;
+			}
+			return counter;
+		}
+		EdgeCost CalculateCost(Edge e) {
 			Vector3 pos;
 			float cost;
 			Quality q;
 			MinError(e, out pos, out cost, out q);
+			var nNormalFlippings = CountNormalFlipping(e, pos);
+			if (nNormalFlippings > 0) {
+				cost += Mathf.Max(1e-6f, cost) * normalFlippingPenalty * nNormalFlippings;
+			}
 			return new EdgeCost(e, cost, pos, q);
 		}
 		
@@ -165,7 +205,7 @@ namespace nobnak.Geometry {
 				var edge = new Edge(f[i], f[i+1]);
 				var adjFaces = faceDb.GetAdjacentFaces(edge);
 				if (adjFaces.Length == 1) 
-					q += new Quality(PerpendicularPlane(f, edge)) * penaltyFactor;
+					q += new Quality(PerpendicularPlane(f, edge)) * boundaryPenalty;
 			}
 			return q;
 		}
