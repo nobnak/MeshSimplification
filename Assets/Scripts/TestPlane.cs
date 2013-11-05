@@ -26,6 +26,7 @@ public class TestPlane : MonoBehaviour {
 			_mesh.Clear();
 			_mesh.vertices = outVertices;
 			_mesh.triangles = outTriangles;
+			_mesh.RecalculateNormals();
 		}
 	}
 }

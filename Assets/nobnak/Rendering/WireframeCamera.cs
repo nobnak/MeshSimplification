@@ -8,10 +8,10 @@ namespace nobnak.Rendering {
 		public bool wireframeMode = true;
 		
 		void OnPreRender() {
-			GL.wireframe = true;
+			GL.wireframe = wireframeMode;
 		}
 		void OnPostRender() {
-			GL.wireframe = false;
+			GL.wireframe = !wireframeMode;
 		}
 	}
 }
