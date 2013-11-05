@@ -78,8 +78,11 @@ namespace nobnak.Geometry {
 				new Face(faceDb, triangles[iTriangle], triangles[iTriangle + 1], triangles[iTriangle + 2]);
 			}
 			
-			foreach (var info in vertexInfos)
-				info.CalculateQuad(this);
+			foreach (var info in vertexInfos) {
+				var adjFaces = faceDb.GetAdjacentFaces(info.iVertex);
+				foreach (var f in adjFaces)
+					info.quad += CalculateQuad(f);
+			}
 			
 			return vertexInfos;
 		}
@@ -104,9 +107,6 @@ namespace nobnak.Geometry {
 			var vi0 = vertexInfos[edge.v0];
 			var vi1 = vertexInfos[edge.v1];
 			q = vi0.quad + vi1.quad;
-			var faces = faceDb.GetAdjacentFaces(edge);
-			if (faces.Length == 1)
-				q += new Quality(PerpendicularPlane(faces[0], edge)) * penaltyFactor;
 			try { 
 				minPos = q.MinError();
 				minError = q * minPos;
@@ -158,6 +158,18 @@ namespace nobnak.Geometry {
 			return new EdgeCost(e, cost, pos, q);
 		}
 		
+		Quality CalculateQuad(Face f) {
+			var plane = GetPlane(f);
+			var q = new Quality(plane);
+			for (var i = 0; i < 3; i++) {
+				var edge = new Edge(f[i], f[i+1]);
+				var adjFaces = faceDb.GetAdjacentFaces(edge);
+				if (adjFaces.Length == 1) 
+					q += new Quality(PerpendicularPlane(f, edge)) * penaltyFactor;
+			}
+			return q;
+		}
+		
 		#region Inner Classes
 		public class VertexInfo {
 			public int iVertex;
@@ -166,15 +178,6 @@ namespace nobnak.Geometry {
 			public VertexInfo(int vertexIndex) {
 				this.iVertex = vertexIndex;
 				this.quad = new Quality();
-			}
-			
-			public void CalculateQuad(Simplification simp) {
-				var faces = simp.faceDb.GetAdjacentFaces(iVertex);
-				foreach (var f in faces) {
-					var plane = simp.GetPlane(f);
-					var K = new Quality(plane);
-					quad += K;
-				}
 			}
 			
 			#region Object

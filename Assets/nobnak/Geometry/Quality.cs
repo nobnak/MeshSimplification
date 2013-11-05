@@ -36,6 +36,7 @@ namespace nobnak.Geometry {
 				mat[i] = multi * mq0[i];
 			return q;
 		}
+		public static Quality operator*(float multi, Quality q0) { return q0 * multi; }
 		public static float operator*(Quality q0, Vector3 p) {
 			var m = q0.matrix;
 			return p.x * (m[ 0] * p.x + m[ 1] * p.y + m[ 2] * p.z + m[ 3])
