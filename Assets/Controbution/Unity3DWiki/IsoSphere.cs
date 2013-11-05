@@ -52,7 +52,7 @@ public static class IsoSphere
         return i;
     }
  
-    public static Mesh Create()
+    public static Mesh Create(int recursionLevel)
     {
         Mesh mesh = new Mesh();
         mesh.Clear();
@@ -60,7 +60,6 @@ public static class IsoSphere
         List<Vector3> vertList = new List<Vector3>();
         Dictionary<long, int> middlePointIndexCache = new Dictionary<long, int>();
  
-        int recursionLevel = 5;
         float radius = 1f;
  
         // create 12 vertices of a icosahedron

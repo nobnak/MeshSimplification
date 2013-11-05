@@ -19,6 +19,8 @@ public class TestSphereThread : MonoBehaviour {
 	void Start () {
 		_sphere = isoSphere.GetComponent<MeshFilter>().mesh;
 		_simp = new Simplification(_sphere.vertices, _sphere.triangles);
+		
+		StartCoroutine("Collapse");
 	}
 	
 	void OnGUI() {
@@ -30,22 +32,29 @@ public class TestSphereThread : MonoBehaviour {
 		GUILayout.EndHorizontal();
 	}
 	
-	void Update() {
-		lock (this) {
-			if (_reductionInProgress)
-				return;
+	IEnumerator Collapse() {
+		while (enabled) {
+			yield return 0;
 			
-			if (_sphere.vertexCount < 100) {
-				isoSphere.Reset();
-				_sphere = isoSphere.GetComponent<MeshFilter>().mesh;
-				_simp = new Simplification(_sphere.vertices, _sphere.triangles);
+			lock (this) {
+				if (_reductionInProgress)
+					continue;
+				
+				if (_sphere.vertexCount < 10) {
+					UpdateSphere();
+					yield return new WaitForSeconds(2f);
+					isoSphere.Reset();
+					_sphere = isoSphere.GetComponent<MeshFilter>().mesh;
+					_simp = new Simplification(_sphere.vertices, _sphere.triangles);
+					_outVertices = null;
+				}
+				
+				_reductionInProgress = true;
+				if (_outVertices != null)
+					UpdateSphere();
+				var targetEdgeCount = (int)(bulkReduction * _simp.costs.Count);
+				ThreadPool.QueueUserWorkItem(new WaitCallback(Reduction), targetEdgeCount);
 			}
-			
-			_reductionInProgress = true;
-			if (_outVertices != null)
-				UpdateSphere();
-			var targetEdgeCount = (int)(bulkReduction * _simp.costs.Count);
-			ThreadPool.QueueUserWorkItem(new WaitCallback(Reduction), targetEdgeCount);
 		}
 	}
 	

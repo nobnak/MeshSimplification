@@ -8,7 +8,7 @@ using System.Text;
 namespace nobnak.Geometry {
 	public class Simplification {
 		public float boundaryPenalty = 1000f;
-		public float normalFlippingPenalty = 10000000f;
+		public float normalFlippingPenalty = 10f;
 
 		public Vector3[] vertices;
 		public int[] triangles;
@@ -26,10 +26,12 @@ namespace nobnak.Geometry {
 		
 		public void CollapseEdge(EdgeCost edgeCost) {
 			var edge = edgeCost.edge;
+#if false
 			var nNormalFlippings = CountNormalFlipping(edge, edgeCost.minPos);
 			if (nNormalFlippings > 0) {
 				Debug.Log(string.Format("Normal-flipping count({0}) cost({1:e2}) at {2}", nNormalFlippings, edgeCost.cost, edge));
 			}
+#endif
 			
 			var invalidEdges = new HashSet<Edge>(faceDb.GetNormalFlippingCandidateEdges(edge));
 			var icost = 0;
