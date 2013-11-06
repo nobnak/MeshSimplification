@@ -8,7 +8,7 @@ using System.Text;
 namespace nobnak.Geometry {
 	public class Simplification {
 		public float boundaryPenalty = 1000f;
-		public float normalFlippingPenalty = 1000f;
+		public float normalFlippingPenalty = 10f;
 
 		public Vector3[] vertices;
 		public int[] triangles;

@@ -3,11 +3,11 @@ using UnityEngine;
 
 // You can change that line to provide another MeshFilter
 public static class ProcedualPlane {
-	public static Mesh Create(int resolution) {
+	public static Mesh Create(int resolution, float size) {
 		var mesh = new Mesh();
 		
-		float length = 1f;
-		float width = 1f;
+		float length = size;
+		float width = size;
 		int resX = resolution; // 2 minimum
 		int resZ = resolution;
 		 

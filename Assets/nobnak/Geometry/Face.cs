@@ -110,6 +110,8 @@ namespace nobnak.Geometry {
 				return res;
 			} 
 		}
+		
+		public int FaceCount { get { return _faces.Count; } }
 	}
 	
 	public static class FaceExtension {

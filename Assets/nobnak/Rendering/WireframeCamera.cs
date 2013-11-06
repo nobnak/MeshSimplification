@@ -11,7 +11,7 @@ namespace nobnak.Rendering {
 			GL.wireframe = wireframeMode;
 		}
 		void OnPostRender() {
-			GL.wireframe = !wireframeMode;
+			GL.wireframe = false;
 		}
 	}
 }
