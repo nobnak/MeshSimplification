@@ -116,8 +116,9 @@ namespace nobnak.Geometry {
 			var vi1 = vertexInfos[edge.v1];
 			q = vi0.quad + vi1.quad;
 			try { 
-				minPos = q.MinError();
-				minError = q * minPos;
+				var minPosD = q.MinError();
+				minError = (float)(q * minPosD);
+				minPos = (Vector3) minPosD;
 			} catch (nobnak.Algebra.SingularMatrixException) {
 				MinErrorOnEdge(vi0, vi1, q, out minPos, out minError);
 			}
@@ -130,41 +131,46 @@ namespace nobnak.Geometry {
 			var errorV0 = q * v0;
 			var errorV1 = q * v1;
 			var errorVmid = q * vmid;
+			var minErrorD = double.MaxValue;
 			if (errorV0 < errorV1) {
 				if (errorV0 < errorVmid) {
 					bestPos = v0;
-					minError = errorV0;
+					minErrorD = errorV0;
 				} else {
 					bestPos = vmid;
-					minError = errorVmid;
+					minErrorD = errorVmid;
 				}
 			} else {
 				if (errorV1 < errorVmid) {
 					bestPos = v1;
-					minError = errorV1;
+					minErrorD = errorV1;
 				} else {
 					bestPos = vmid;
-					minError = errorVmid;
+					minErrorD = errorVmid;
 				}
 			}
+			minError = (float) minErrorD;
 		}
 
-		Vector4 GetPlane(Face f) {
+		Vector4D GetPlane(Face f) {
 			return Plane.FromTriangle(vertices[f[0]], vertices[f[1]], vertices[f[2]]);
 		}
-		Vector3 GetNormal(Face f) {
+		Vector3D GetNormal(Face f) {
 			var e1 = vertices[f[1]] - vertices[f[0]];
 			var e2 = vertices[f[2]] - vertices[f[0]];
-			return Vector3.Cross(e1, e2);
+			return Vector3D.Cross(e1, e2);
 		}
-		Vector3 GetNormal(Vector3 v0, Vector3 v1, Vector3 v2) {
+		Vector3D GetNormal(Vector3D v0, Vector3D v1, Vector3D v2) {
 			var e1 = v1 - v0;
 			var e2 = v2 - v0;
-			return Vector3.Cross(e1, e2);
+			return Vector3D.Cross(e1, e2);
 		}
-		Vector4 PerpendicularPlane(Face f, Edge e) {
-			var n = GetNormal(f);
-			return Plane.FromTriangle(vertices[e.v0], vertices[e.v1], n + vertices[e.v0]);
+		Vector4D PerpendicularPlane(Face f, Edge e) {
+			var n = GetNormal(f).normalized;
+			var v0 = vertices[e.v0];
+			var v1 = vertices[e.v1];
+			var len = System.Math.Max(1e-6, Vector3D.Distance(v0, v1));
+			return Plane.FromTriangle(v0, v1, len * n + v0);
 		}
 		int CountNormalFlipping(Edge e, Vector3 minPos) {
 			var fillingFaces = faceDb.GetFillHoleFaces(e);
@@ -172,8 +178,8 @@ namespace nobnak.Geometry {
 			var normalsAfter = new Vector3[fillingFaces.Length];
 			for (var i = 0; i < fillingFaces.Length; i++) {
 				var f = fillingFaces[i];
-				normalsBefore[i] = GetNormal(f);
-				normalsAfter[i] = GetNormal(
+				normalsBefore[i] = (Vector3)GetNormal(f);
+				normalsAfter[i] = (Vector3)GetNormal(
 					e.Contains(f[0]) ? minPos : vertices[f[0]],
 					e.Contains(f[1]) ? minPos : vertices[f[1]],
 					e.Contains(f[2]) ? minPos : vertices[f[2]]);
